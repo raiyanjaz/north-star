@@ -4,79 +4,261 @@ NorthStar's Open Agent Hackathon 2026 application. Primary track: **The Agent Th
 Can Explain Why**. A Toronto dispatcher decision-support simulation with real
 Zetaris federation, Nightshift/NVIDIA Nemotron inference and Meterless World Model.
 
-## Quick start
+## Start here — teammates and coding agents
 
-### Opening ARC with the team
+This guide is for a fresh Mac or Windows computer. Open this project folder in
+your coding agent and paste the following request:
 
-After the computer has been configured, double-click **Start ARC.command** on Mac
-or **Start ARC.bat** on Windows. The launcher checks Python, Node.js, Zetaris and
-Nightshift, starts ARC, registers its feeds on first use, and opens your browser.
-Keep its window open while using ARC. If ARC is already running, it reuses it.
+> Read README.md and help me set up and run the full ARC app on this computer.
+> Detect my OS, processor, installed tools and existing services first. Follow
+> the Mac or Windows instructions below. Install missing prerequisites using
+> official sources, preserving existing installations and data. Help me obtain
+> the Zetaris distribution and choose a compatible Nightshift edition; tell me
+> clearly if either is unavailable for my machine. Ask me to enter credentials
+> privately, without printing or committing them. Configure .env, start the real
+> services, run the checks, and verify an assessment, explanation, changed-condition
+> reassessment and approval in the browser. Do not substitute mocks or report
+> success just because the page opens. Finish with exact steps I can repeat to
+> open the app next time, and explain any remaining blocker in plain language.
 
-**A download from GitHub alone is not a complete installation.** Each computer
-still needs Python 3.11+, Node.js 24+, a configured Zetaris installation, Nightshift
-with a working model provider, and its own private `.env` credentials. Never put
-those credentials in GitHub. Windows launch is provided but has not been tested
-on a Windows computer. See [team setup](docs/TEAM-SETUP.md).
+**First setup needs software installations, sponsor access and credentials.** The
+launchers simplify daily use after setup; they do not install the sponsor services.
+Mac has been exercised in the original workspace. Windows commands and a launcher
+are provided, but the full Windows installation has not been verified on Windows.
 
-For teammates who should only open a browser, use one centrally configured host
-with HTTPS and access control. Hosting has not been configured in this repository;
-the current application listens on this computer only. A private GitHub repository
-stores code and does not host this Python application.
+### Prerequisites
 
-### Developer setup
+| Prerequisite | What to prepare |
+| --- | --- |
+| Private repository access | Ask the repo owner for access to [raiyanjaz/north-star](https://github.com/raiyanjaz/north-star). Sign in to GitHub to clone or download it. |
+| Python 3.11+ | Install from [python.org](https://www.python.org/downloads/). On Windows, make Python available to the terminal; the examples use `py -3`. |
+| Node.js 24 | Install a current **24.x** release from [nodejs.org](https://nodejs.org/en/download). It executes the vendored World Model TypeScript. |
+| Container runtime | [Docker Desktop for Mac](https://docs.docker.com/desktop/setup/install/mac-install/) or [Windows](https://docs.docker.com/desktop/setup/install/windows-install/). Existing OrbStack on Mac also works. On Windows, use Linux containers with the WSL 2 backend and follow Docker's virtualization requirements. |
+| Zetaris platform | Obtain the hackathon/platform distribution and private image-registry access from the team or Zetaris. It is **not included in this repo**. Keep its own Compose files, configuration and volumes in a separate folder. |
+| Nightshift / Meterless Runtime | Obtain the appropriate [Mac](https://meterless.ai/mac.html) or [Windows](https://meterless.ai/windows.html) edition. Verify its current hardware requirements before installing. The original machine uses the M1–M4 Mac edition; do not assume the other editions support the same hardware. The browser-only edition does not supply ARC's required runtime API. |
+| NVIDIA model access | Configure the NVIDIA provider and a working Nemotron model **inside Nightshift**. A runtime token alone is insufficient. The tested requested model is `nvidia/nemotron-3.5-super-vl-120b-a12b`; inspect the actual winning route because Nightshift may reroute it. |
+| Internet | Needed for sponsor downloads, cloud inference, live Toronto information and route refreshes. Optional TomTom traffic requires a separate API key. |
 
-Requirements: Python **3.11+**, Node **24+**, running Zetaris and Nightshift Runtime.
-No Python or Node application packages need installing. Leaflet and Meterless's
-Apache-2.0 World Model reference are vendored. No build step is needed.
+Plan for **at least 16 GB of system RAM** as a practical starting point for this
+combined setup. This is a planning recommendation, not a tested minimum for every
+machine. The supplied Zetaris distribution recommends 4 CPUs and 8 GB available
+to its container engine, with at least 15 GB of free disk for that platform.
+Leave additional resources for the OS, ARC and Nightshift. Local AI models may
+require substantially more memory or a supported GPU; follow the selected edition's
+requirements. ARC currently sends inference through Nightshift's configured cloud
+provider, rather than downloading Nemotron weights into this repository.
 
-1. Preserve your existing `.env`, or copy `.env.example` and supply your own secrets.
-   The NVIDIA provider key belongs in Nightshift, never this project or the browser.
-2. Keep OrbStack and Zetaris running. Existing installation:
-   `cd /Users/raiyanjaz/Developer/zetaris-platform && docker compose start`.
-   Never use `docker compose down -v`: it deletes platform data and encryption keys.
-3. Open Nightshift and confirm the NVIDIA provider and Nemotron model work.
-4. From this folder, start ARC:
+No Python application packages, npm install, frontend build or separate World
+Model service are needed. Python uses its standard library; the World Model,
+conformance runner and browser libraries are vendored.
 
-   ```sh
-   ./run.sh
-   ```
+### 1. Get the project
 
-5. In a second terminal, register ARC's additive Zetaris sources (first installation):
+Clone the private repository with Git if installed:
 
-   ```sh
-   "$(scripts/python-path.sh)" scripts/register-sources.py
-   ```
+```sh
+git clone https://github.com/raiyanjaz/north-star.git
+cd north-star
+```
 
-6. Open **http://127.0.0.1:4317**. Select an incident and **Assess response plan**.
+Alternatively, sign in to GitHub, choose **Code → Download ZIP**, extract it,
+and open the extracted folder in your coding agent. Commands below run from
+that folder unless a step explicitly says otherwise. Git is optional for ZIP use.
 
-`run.sh` uses a supported Python/Node on PATH, or the available Codex bundled runtime
-on this machine. For another installation, set `PYTHON_BIN` and `NODE_BIN` to your
-executables. You can also launch `python3 app.py` directly with Python 3.11+ and
-Node 24+ on PATH. The older macOS system Python 3.9 is unsupported.
+### 2. Prepare Zetaris and Nightshift
 
-### Configuration
+In the **separate Zetaris distribution folder**, follow its included README and
+platform checks. Authenticate to its private image registry using credentials
+provided to you; do not copy someone else's platform .env or encryption keys.
+For a fresh installation, its documented Compose workflow is:
 
-Private `.env` keys: `ZETARIS_REST_URL`, `ZETARIS_ORG_ID`, `ZETARIS_API_KEY`,
-`METERLESS_BASE_URL`, `METERLESS_RUNTIME_TOKEN`, `METERLESS_MODEL`.
-Environment variables override the file. Use the actual configured organization ID.
-Requested tested model: `nvidia/nemotron-3.5-super-vl-120b-a12b`. Nightshift can reroute it; actual product receipts have identified both Super VL and NVIDIA Nemotron Ultra. Inspect the winning receipt.
-The existing local tokens expire October 29, 2026 per the setup handoff. Rotate
-in the respective applications if expired; never include values in source or logs.
+```sh
+docker compose version
+docker compose pull
+docker compose up -d
+docker compose ps -a
+```
 
-Main UI/API listens on **127.0.0.1:4317**. A separate **read-only synthetic feed**
-listener uses **0.0.0.0:4318**, allowing Zetaris's Docker network to read through
-`host.docker.internal`. This feed contains only the demo's synthetic records.
-No private operational or patient data belongs on this demo server.
+On Mac, use that distribution's `./preflight.sh` before installation and
+`./verify.sh` after startup if supplied. Those are Bash scripts; on Windows use
+the distribution's supported Bash/WSL instructions, not PowerShell syntax for
+`.sh` files. Keep ARC and Nightshift on the Windows host for the native Windows
+steps below; WSL has its own filesystem, executables and localhost networking.
+Do not move just one component into WSL without checking the resulting connections.
 
-If ports are occupied: `./run.sh --port 4327 --feed-port 4328`. For source registration,
-set `ARC_FEED_HOST=host.docker.internal:4328`. Existing registered sources retain their
-original URL; choose normal ports for the prepared demo. Do not overwrite or delete
-existing sources to change ports. On Linux Docker, configure a host-gateway mapping
-for `host.docker.internal`, or use a reachable `ARC_FEED_HOST` during first registration.
+The first startup can take several minutes. In the supplied distribution,
+`postgres`, `driver`, `api` and `ui` are persistent services; `init` and `bootstrap`
+finishing with exit code 0 is expected. For later starts of an existing stack,
+use `docker compose start`. Never run `docker compose down -v` to troubleshoot:
+it deletes platform volumes, including data and encryption keys.
 
-Stop ARC with Ctrl+C. SQLite simulation state and World Model history persist under
-ignored `data/`. Reset restores baseline synthetic resources without deleting history.
+Open the Zetaris UI at its configured address (normally http://localhost:3000).
+Obtain an API key for the actual organization ID. Separately open Nightshift,
+configure its NVIDIA provider, test a model request there, and obtain the
+**runtime API token**. Do not place the NVIDIA provider key in ARC's .env.
+If the download, registry access, edition or model is unavailable, ask the owner
+for the missing access and report the blocker instead of simulating the service.
+
+### 3. Configure this project's private .env
+
+Preserve an existing .env. Only if it does not already exist, copy the template:
+
+**Mac — Terminal**
+
+```sh
+[ -f .env ] || cp .env.example .env
+python3 --version
+node --version
+```
+
+**Windows — PowerShell**
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+py -3 --version
+node --version
+```
+
+If Windows has `python` but no `py`, verify `python --version` is 3.11+ and use
+`python` in place of `py -3` throughout this guide. Reopen your terminal and
+coding agent after installing tools so they pick up the new PATH.
+
+Edit .env locally with these settings:
+
+| Variable | Meaning |
+| --- | --- |
+| `ZETARIS_REST_URL` | Local REST API URL, normally `http://localhost:8888/api/v1.0`. |
+| `ZETARIS_ORG_ID` | Actual organization ID associated with the API key; template `1` is only a starting value. |
+| `ZETARIS_API_KEY` | Your valid Zetaris API bearer token. |
+| `METERLESS_BASE_URL` | Nightshift API URL, normally `http://127.0.0.1:8088/v1`. |
+| `METERLESS_RUNTIME_TOKEN` | Actual Nightshift runtime token, not a placeholder or NVIDIA provider key. |
+| `METERLESS_MODEL` | A model supported by your Nightshift configuration; the template contains the tested request ID above. |
+| `TOMTOM_API_KEY` | Optional: enables live traffic flow and traffic-aware routing. Leave blank for OSRM static estimates. |
+
+Environment variables override .env. Check for stale terminal overrides if a
+correct file seems to be ignored. Keys/tokens can expire: obtain replacements
+from the corresponding service rather than relying on the original machine's
+credentials. Never paste credentials into agent output, screenshots, Git commits
+or this README. .env and local runtime data are ignored by Git.
+
+### 4. Check connections, then start ARC
+
+**Mac — Terminal**
+
+```sh
+python3 launch.py --check
+python3 launch.py
+```
+
+**Windows — PowerShell**
+
+```powershell
+py -3 launch.py --check
+py -3 launch.py
+```
+
+The launcher checks Python, Node, a real Zetaris SQL request and Nightshift's
+model-list endpoint. When starting ARC, it registers ARC's additive Zetaris
+sources and checks their federated query before opening the browser at
+**http://127.0.0.1:4317**. Keep the startup window open. Press Ctrl+C to stop.
+`--check` alone does not run inference or prove a complete assessment works.
+
+If ARC was already running, the launcher reuses it and checks its sources;
+it does not perform source registration in that branch. If those sources are
+missing, run `python3 scripts/register-sources.py` on Mac or
+`py -3 scripts/register-sources.py` on Windows **while ARC is running**, then retry.
+The registration script preserves existing source definitions. Do not drop
+sources as a troubleshooting shortcut.
+
+After setup, daily startup is: open the container runtime, start the Zetaris stack,
+open Nightshift, then double-click **Start ARC.command** (Mac) or **Start ARC.bat**
+(Windows). On Mac, if executable permission was lost when downloading a ZIP,
+run `chmod +x "Start ARC.command"` from the project folder, or use
+`python3 launch.py`. Follow macOS's normal review/open flow for downloaded files.
+Windows users can run `.\Start ARC.bat` from PowerShell. The launcher checks
+services; it does not start Docker, Zetaris or Nightshift for you.
+
+### 5. Confirm the full app works
+
+Before handing the computer back to your teammate, the coding agent should:
+
+1. Open ARC and confirm the map, incidents, resources and agent controls load.
+2. Select a prepared exercise incident with complete intake. Let the agent assess
+   it, or request assessment manually. Wait for a completed plan and explanation.
+3. Inspect System details: confirm a real Zetaris query, an actual Nightshift
+   inference receipt/winning model route, and World Model entities/events.
+4. Change a condition using Scenario controls. Confirm the old plan cannot be
+   approved and a fresh assessment reflects the change.
+5. Approve a fresh eligible plan and verify the simulated unit, receiving slot
+   and incident update. Reset only when the teammate is ready to discard the
+   current exercise reservations; reset affects the local simulation.
+6. Stop and reopen ARC, confirming that the normal daily-start steps work.
+
+A page load or `/api/health` response is not proof that federation, routing and
+inference work. Report exactly which checks passed and any remaining issue.
+The acceptance script under Verification resets simulation state; use it on an
+exercise workspace when that reset is intended.
+
+### Troubleshooting for coding agents
+
+| Symptom | Check / action |
+| --- | --- |
+| Python or Node not found / unsupported | Verify Python 3.11+ and Node 24.x in the same terminal that launches ARC. On Mac, avoid the old system Python. On Windows, try the Python launcher or correct the PATH. Do not assume Codex's bundled runtimes exist on a teammate's machine. |
+| Node exists but World Model fails | Check `node --version` and the process selected by `NODE_BIN`. Node must execute the vendored TypeScript with `--experimental-transform-types`. |
+| Cannot reach Zetaris | Check Docker/OrbStack is running, the platform services are healthy, API port 8888 is reachable and the configured REST path is correct. Inspect platform logs without publishing credential values. |
+| Zetaris unauthorized | Obtain a valid API key and matching organization ID; check expiry and environment overrides. |
+| Nightshift offline / unauthorized | Open the correct edition, confirm its runtime port, replace the runtime token if needed, and test `meterless_client.py --models`. Then test a real prompt: advertised models alone do not prove inference. |
+| Models list works but assessment fails | Test the NVIDIA provider inside Nightshift, check the requested model and receipt, provider quota and network. Do not replace a required real integration with a stub. |
+| Missing ARC tables / federation fails | Keep ARC running, register its three sources using the command above, then check that Zetaris can fetch `http://host.docker.internal:4318/feeds/fleet` from its containers. |
+| Docker cannot reach ARC feeds | Default source URLs use `host.docker.internal:4318`. On Windows check Docker's WSL 2 networking and firewall; allow only the synthetic feed port on the appropriate private/Docker network. Never broadly disable the firewall. |
+| Ports already occupied | Identify the owning process; reuse an existing ARC or stop only the intended process. The launcher uses fixed ports 4317/4318. See custom-port instructions below for manual startup. |
+| Routing fails | Check internet access and route-fixture freshness (7 days). If TomTom is configured, verify its key and routing access. ARC deliberately blocks failed routes rather than inventing travel times. |
+| HTTPS/certificate error | Repair the Python/system CA trust setup; for python.org's Mac installer, use its supplied certificate-install instructions. Never disable TLS verification. |
+| Public call cannot be assessed | Supply explicit priority, service, equipment and pickup where missing. Public data does not supply those clinical facts automatically. |
+
+### Manual startup and custom ports
+
+On Mac, `./run.sh` is also available. It uses PATH or the original machine's
+bundled runtimes; its hard-coded fallback paths are not portable installation
+instructions. The platform-independent manual entry point is `app.py`:
+
+```sh
+# Mac
+python3 app.py --port 4327 --feed-port 4328
+```
+
+```powershell
+# Windows
+py -3 app.py --port 4327 --feed-port 4328
+```
+
+For first-time source registration against the custom feed port, in a second
+terminal at the project folder:
+
+```sh
+# Mac
+ARC_FEED_HOST=host.docker.internal:4328 python3 scripts/register-sources.py
+```
+
+```powershell
+# Windows
+$env:ARC_FEED_HOST = 'host.docker.internal:4328'
+py -3 scripts/register-sources.py
+Remove-Item Env:ARC_FEED_HOST
+```
+
+Existing source definitions retain their original URLs. Custom ports require
+checking those definitions rather than assuming registration rewrites them.
+Prefer the default ports for normal teammate setup.
+
+The UI/API binds to **127.0.0.1:4317**. The separate synthetic feed listener binds
+to **0.0.0.0:4318** so Zetaris containers can read it. Do not put private data in
+those feeds. SQLite state, cached public data and World Model history persist
+under ignored `data/`; do not delete this folder to fix an unrelated setup issue.
+
+Each local installation has separate state and must keep its own services running.
+A private GitHub repo stores source; it does not host the app. Shared hosting is
+not configured. See [team setup](docs/TEAM-SETUP.md) for the local/shared distinction.
 
 ## Main workflow
 
@@ -141,27 +323,61 @@ and simulation history stay private under `data/`. External endpoints are best e
 
 ## Verification
 
+Run from the project folder. These automated checks do not replace the browser
+acceptance steps above or require a running Zetaris/Nightshift instance.
+
+**Mac**
+
 ```sh
 ./scripts/check.sh
-# Real sponsor acceptance test; app must be running. Resets the simulation.
-"$(scripts/python-path.sh)" scripts/live-check.py
+```
+
+**Windows — PowerShell** (equivalent checks without the Unix shell wrapper)
+
+```powershell
+py -3 -m unittest discover -s tests -v
+if ($LASTEXITCODE -ne 0) { throw 'Python tests failed' }
+py -3 -m compileall -q -x '[/\\](data|artifacts|vendor|[.]git|[.]venv|[.]deck-build|[.]codex-finalizer)[/\\]' .
+if ($LASTEXITCODE -ne 0) { throw 'Python compilation failed' }
+node --check web/app.js
+if ($LASTEXITCODE -ne 0) { throw 'JavaScript syntax check failed' }
+node --test tests/test-dispatch-model.mjs
+if ($LASTEXITCODE -ne 0) { throw 'Interface behavior tests failed' }
+$env:WORLD_MODEL_IMPL = (Join-Path (Get-Location).Path 'vendor/world-model/src/index.ts')
+try {
+    node --experimental-transform-types vendor/world-model-conformance/runner.ts
+    if ($LASTEXITCODE -ne 0) { throw 'World Model conformance failed' }
+} finally {
+    Remove-Item Env:WORLD_MODEL_IMPL
+}
+py -3 scripts/secret-check.py
+if ($LASTEXITCODE -ne 0) { throw 'Configured-secret check failed' }
 ```
 
 Checks cover eligibility, stale/missing data, missing routing, segment-crossing
-closures, expired/changed proposals, rejection, concurrent reservations and real
-World Model persistence/recall. The upstream conformance runner checks 8 invariants.
-JS syntax and Python compilation checks apply; this buildless stack has no separate
-TypeScript app build. Actual engine TypeScript is executed by Node 24 and tested by
-its upstream runner. See `artifacts/` and `docs/VALIDATION.md` for recorded results.
+closures, expired/changed proposals, rejection, concurrent reservations, automatic
+coordination, public intake, and actual World Model persistence/recall. The upstream
+conformance runner checks 8 invariants. There is no separate frontend build.
 
-Existing smoke clients remain usable:
+For live service diagnostics, use the appropriate Python command for your OS:
 
 ```sh
+# Mac; on Windows substitute py -3 for python3
 python3 zetaris_client.py
-python3 zetaris_client.py 'SHOW LIGHTNING DATABASES'
 python3 meterless_client.py --models
 python3 meterless_client.py 'Reply with one short sentence.'
+python3 scripts/secret-check.py --live
 ```
+
+The browser acceptance steps above are the primary full-app setup check.
+`scripts/live-check.py` is an older, state-resetting sponsor test. It predates the
+current automatic coordinator and can compete with background assessments; each
+reset also restores automatic-agent behavior. Do not use that legacy script as an
+unattended pass/fail gate for teammate installation until it is adapted to the
+current workflow.
+
+See `artifacts/` and [validation notes](docs/VALIDATION.md) for historical results;
+they do not establish that a new computer has passed its own setup checks.
 
 ## Submission materials
 
