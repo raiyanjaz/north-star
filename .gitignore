@@ -1,0 +1,19 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+.venv/
+
+# Local simulation, engine state and generated output
+data/
+.world/
+node_modules/
+*.log
+.DS_Store
+artifacts/private/
+
+.deck-build/
+.codex-finalizer/
+
+# Generated source bundles can contain obsolete copies; build from current source.
+artifacts/*.zip

@@ -1,0 +1,43 @@
+{
+  "at": "2026-10-23T01:26:50Z",
+  "passed": [
+    "baseline: real Zetaris + Nightshift/NVIDIA receipt + actual routes",
+    "road closure: revised destination and renewed approval",
+    "approval: fleet + receiving slot + incident updated",
+    "stale feed: no approvable proposal",
+    "no destination: concrete exclusions and no proposal",
+    "zetaris-offline: explicit failure, no fallback",
+    "ai-offline: explicit failure, no fallback",
+    "World Model: real engine entities and persistent events"
+  ],
+  "baseline_receipt": {
+    "requested_model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+    "reported_model": "nvidia/nemotron-3-ultra-550b-a55b",
+    "request_id": "chatcmpl-qbsov53umvkacs44",
+    "usage": {
+      "prompt_tokens": 765,
+      "completion_tokens": 40,
+      "total_tokens": 805
+    },
+    "at": 1792718632.487958,
+    "receipt_id": "rcpt_req_f8j02qcz",
+    "winning_route": {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "label": "Nemotron 3 Ultra 550B A55B",
+      "provider": "nvidia",
+      "kind": "cloud",
+      "tier": "C"
+    },
+    "routed_model": "nvidia/nemotron-3-ultra-550b-a55b"
+  },
+  "baseline_selected": {
+    "id": "A-12 / H-SMH",
+    "pickup_min": 0.9,
+    "transport_min": 3.1,
+    "total_min": 4.0
+  },
+  "revised_selected": {
+    "id": "A-12 / H-TGH",
+    "total_min": 4.2
+  }
+}

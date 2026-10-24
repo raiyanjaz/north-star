@@ -1,0 +1,12 @@
+{
+  "description": "Prepared NorthStar exercise intake, not clinical facts from public feeds. Dedicated standby units allow demonstration without releasing existing reservations.",
+  "incidents": [
+    {"id":"DEMO-201","name":"College & Spadina","lat":43.6580,"lon":-79.4003,"priority":"Priority 1","service":"neuro","equipment":"advanced","description":"Prepared specialist transport exercise"},
+    {"id":"DEMO-202","name":"King & Church","lat":43.6499,"lon":-79.3753,"priority":"Priority 1","service":"trauma","equipment":"advanced","description":"Prepared trauma-capable destination exercise"},
+    {"id":"DEMO-203","name":"Queen & University","lat":43.6509,"lon":-79.3862,"priority":"Priority 2","service":"general","equipment":"general","description":"Prepared general transport exercise"}
+  ],
+  "fleet": [
+    {"id":"A-51","name":"Medic 51","lat":43.6579,"lon":-79.3931,"equipment":"general,advanced","status":"available","source":"prepared_demo"},
+    {"id":"A-52","name":"Medic 52","lat":43.6508,"lon":-79.3781,"equipment":"general,advanced","status":"available","source":"prepared_demo"}
+  ]
+}

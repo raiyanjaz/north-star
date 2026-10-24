@@ -1,0 +1,55 @@
+{
+  "verified_at": "2026-10-23T19:31:06.527382+00:00",
+  "traffic_mode": "live",
+  "traffic_stale": false,
+  "samples": [
+    {
+      "name": "University & Queen",
+      "speed_kph": 15,
+      "free_flow_kph": 15,
+      "confidence": 1
+    },
+    {
+      "name": "College & Spadina",
+      "speed_kph": 12,
+      "free_flow_kph": 18,
+      "confidence": 0.97691
+    },
+    {
+      "name": "King & Church",
+      "speed_kph": 9,
+      "free_flow_kph": 15,
+      "confidence": 0.93
+    }
+  ],
+  "assessment": {
+    "incident_id": "INC-1042",
+    "pair": "Medic 12 \u2192 Toronto General",
+    "response_min": 2.3,
+    "transport_min": 8.6,
+    "approvable_at_completion": true,
+    "routes": [
+      {
+        "source": "TomTom Routing",
+        "mode": "live",
+        "traffic_aware": true,
+        "fetched_at": "2026-10-23T19:30:38.464951+00:00",
+        "traffic_delay_s": 0
+      },
+      {
+        "source": "TomTom Routing",
+        "mode": "live",
+        "traffic_aware": true,
+        "fetched_at": "2026-10-23T19:30:38.486763+00:00",
+        "traffic_delay_s": 82
+      }
+    ],
+    "actual_model": "nvidia/nemotron-3-ultra-550b-a55b"
+  },
+  "state": {
+    "version": 23,
+    "epoch": "2026-10-23T04:30:57.685275+00:00",
+    "incidents": 3,
+    "reservations": 1
+  }
+}

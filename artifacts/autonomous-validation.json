@@ -1,0 +1,121 @@
+{
+  "observed_at": "2026-10-23T21:52:46.650920+00:00",
+  "resource_version": 25,
+  "existing_reservations": 2,
+  "prepared_cases": 3,
+  "standby_units": [
+    "A-51",
+    "A-52"
+  ],
+  "automatic_results": [
+    {
+      "incident_id": "DEMO-201",
+      "recommendation_id": "a9989d8d-3750-49a5-9b73-d88b66d2e648",
+      "automatic": true,
+      "trigger": "evidence refresh",
+      "unit": "A-51",
+      "hospital": "H-TWH",
+      "response_min": 4.3,
+      "transport_min": 4.4,
+      "coordination": {
+        "units": {},
+        "slots": {},
+        "signature": "[]"
+      },
+      "routed_model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "decision": "pending"
+    },
+    {
+      "incident_id": "DEMO-202",
+      "recommendation_id": "6d517014-0024-4c1b-95d3-bd0e798ed0d7",
+      "automatic": true,
+      "trigger": "evidence refresh",
+      "unit": "A-52",
+      "hospital": "H-SMH",
+      "response_min": 3.1,
+      "transport_min": 5.2,
+      "coordination": {
+        "units": {
+          "A-51": "DEMO-201"
+        },
+        "slots": {
+          "H-TWH": 1
+        },
+        "signature": "[[\"DEMO-201\",\"A-51\",\"H-TWH\"]]"
+      },
+      "routed_model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "decision": "pending"
+    }
+  ],
+  "events": [
+    {
+      "at": "2026-10-23T21:49:14.438915+00:00",
+      "incident_id": null,
+      "text": "Agent paused; any in-flight assessment may finish."
+    },
+    {
+      "at": "2026-10-23T21:49:09.004360+00:00",
+      "incident_id": "DEMO-201",
+      "text": "Plan ready for approval."
+    },
+    {
+      "at": "2026-10-23T21:48:48.441162+00:00",
+      "incident_id": "DEMO-201",
+      "text": "Started evidence refresh."
+    },
+    {
+      "at": "2026-10-23T21:48:07.086728+00:00",
+      "incident_id": "DEMO-202",
+      "text": "Plan ready for approval."
+    },
+    {
+      "at": "2026-10-23T21:47:32.109431+00:00",
+      "incident_id": "DEMO-202",
+      "text": "Started evidence refresh."
+    },
+    {
+      "at": "2026-10-23T21:47:29.815918+00:00",
+      "incident_id": "DEMO-201",
+      "text": "Plan ready for approval."
+    },
+    {
+      "at": "2026-10-23T21:46:37.215622+00:00",
+      "incident_id": "DEMO-201",
+      "text": "Started evidence refresh."
+    },
+    {
+      "at": "2026-10-23T21:46:03.325262+00:00",
+      "incident_id": "DEMO-202",
+      "text": "Plan ready for approval."
+    },
+    {
+      "at": "2026-10-23T21:45:26.963512+00:00",
+      "incident_id": "DEMO-202",
+      "text": "Started new incident."
+    },
+    {
+      "at": "2026-10-23T21:45:23.995400+00:00",
+      "incident_id": "DEMO-201",
+      "text": "Plan ready for approval."
+    },
+    {
+      "at": "2026-10-23T21:45:11.745450+00:00",
+      "incident_id": "DEMO-201",
+      "text": "Started new incident."
+    }
+  ],
+  "scope": "Actual sponsor path and automatic evidence refresh. No assignment approved during verification.",
+  "final_agent_enabled": true,
+  "tests": {
+    "python": 59,
+    "workspace": 14,
+    "world_model": 8
+  },
+  "automatic_start_limit_per_10_minutes": 16,
+  "final_reservations": 2,
+  "final_prepared_states": {
+    "DEMO-201": "awaiting_approval",
+    "DEMO-202": "awaiting_approval",
+    "DEMO-203": "waiting"
+  }
+}

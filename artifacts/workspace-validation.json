@@ -1,0 +1,58 @@
+{
+  "checked_at": "2026-10-23T03:55:16.655153+00:00",
+  "automated": {
+    "python_tests": 21,
+    "workspace_behavior_tests": 8,
+    "upstream_engine_conformance": 8,
+    "javascript_syntax": "pass"
+  },
+  "browser_verified": [
+    "priority ordering and waiting timers",
+    "persistent fleet and receiving-facility statuses",
+    "incident switching during real inference",
+    "result attached to originating incident without changing selected case",
+    "eligible alternative refreshed through actual sponsor path",
+    "reviewed alternative approved with atomic reservation",
+    "selected-incident scenario targeting",
+    "persistent changed-condition alert and removed approval",
+    "expired evidence state",
+    "workstation layout at 1440x900 and default in-app layout"
+  ],
+  "approved_alternative": {
+    "incident_id": "INC-1042",
+    "decision": "approved",
+    "selection_basis": "dispatcher",
+    "pair": "A-12 / H-TGH",
+    "receipt": {
+      "requested_model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "reported_model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "request_id": "chatcmpl-h1ehnu1imvkfggl0",
+      "usage": {
+        "prompt_tokens": 771,
+        "completion_tokens": 40,
+        "total_tokens": 811
+      },
+      "at": 1792727149.1900742,
+      "receipt_id": "rcpt_req_bwenclpj",
+      "winning_route": {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b",
+        "label": "Nemotron 3 Ultra 550B A55B",
+        "provider": "nvidia",
+        "kind": "cloud",
+        "tier": "C"
+      },
+      "routed_model": "nvidia/nemotron-3-ultra-550b-a55b"
+    }
+  },
+  "scenario_state": {
+    "scenario": "hospital-unavailable",
+    "unavailable_hospitals": [
+      "H-TWH"
+    ]
+  },
+  "limits": [
+    "Simulation still reserves unit and receiving slot together; destination is a preview, not a real clinical authorization.",
+    "Inference jobs are serialized, while other cases remain browsable.",
+    "Desk research informed the design; no dispatcher interviews or full WCAG audit have been conducted."
+  ]
+}

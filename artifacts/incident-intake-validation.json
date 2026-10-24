@@ -1,0 +1,29 @@
+{
+  "scope": "isolated workspace copy; original queue details and resources not edited by QA",
+  "public_incident_id": "LIVE-TFS-F26169092",
+  "published_category": "MEDICAL",
+  "pickup_source": "dispatcher",
+  "requirements_source": "dispatcher",
+  "assessment_blockers": [],
+  "result": {
+    "status": "recommended",
+    "approvable_at_completion": true,
+    "incident_revision": 2,
+    "route_sources": [
+      "TomTom Routing",
+      "TomTom Routing"
+    ]
+  },
+  "browser_checks": [
+    "incomplete call blocks assessment",
+    "draft survives case switching",
+    "map click populates pickup",
+    "explicit details save enables assessment",
+    "full sponsor assessment completed"
+  ],
+  "tests": {
+    "python": 43,
+    "workspace": 12,
+    "world_model": 8
+  }
+}

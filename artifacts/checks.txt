@@ -1,0 +1,58 @@
+test_required_evidence_cannot_be_skipped (test_agent.AgentTests.test_required_evidence_cannot_be_skipped) ... ok
+test_unknown_citation_rejected (test_agent.AgentTests.test_unknown_citation_rejected) ... ok
+test_unknown_tool_rejected (test_agent.AgentTests.test_unknown_tool_rejected) ... ok
+test_valid_citations_preserve_only_existing_facts (test_agent.AgentTests.test_valid_citations_preserve_only_existing_facts) ... ok
+test_approval_reserves_atomically (test_decisions.DecisionTests.test_approval_reserves_atomically) ... ok
+test_baseline_and_real_constraints (test_decisions.DecisionTests.test_baseline_and_real_constraints) ... ok
+test_changed_conditions_require_renewed_approval (test_decisions.DecisionTests.test_changed_conditions_require_renewed_approval) ... ok
+test_closure_detects_segment_crossing (test_decisions.DecisionTests.test_closure_detects_segment_crossing) ... ok
+test_dispatcher_can_select_only_an_eligible_alternative (test_decisions.DecisionTests.test_dispatcher_can_select_only_an_eligible_alternative) ... ok
+test_duplicate_and_concurrent_reservation (test_decisions.DecisionTests.test_duplicate_and_concurrent_reservation) ... ok
+test_expired_approval (test_decisions.DecisionTests.test_expired_approval) ... ok
+test_no_available_fleet (test_decisions.DecisionTests.test_no_available_fleet) ... ok
+test_no_destination (test_decisions.DecisionTests.test_no_destination) ... ok
+test_rejection_reserves_nothing (test_decisions.DecisionTests.test_rejection_reserves_nothing) ... ok
+test_reset_preserves_version_monotonicity (test_decisions.DecisionTests.test_reset_preserves_version_monotonicity) ... ok
+test_route_failure_no_invented_eta (test_decisions.DecisionTests.test_route_failure_no_invented_eta) ... ok
+test_scenario_targets_reviewed_incident_not_latest_other_proposal (test_decisions.DecisionTests.test_scenario_targets_reviewed_incident_not_latest_other_proposal) ... ok
+test_specialist_service_not_invented (test_decisions.DecisionTests.test_specialist_service_not_invented) ... ok
+test_stale_and_missing_evidence (test_decisions.DecisionTests.test_stale_and_missing_evidence) ... ok
+test_unavailable_hospital_excluded (test_decisions.DecisionTests.test_unavailable_hospital_excluded) ... ok
+test_real_reference_persists_and_recalls_prior_state (test_decisions.WorldTests.test_real_reference_persists_and_recalls_prior_state) ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 0.618s
+
+OK
+✔ priority and waiting time order never mutates the source queue (11.771291ms)
+✔ reserved plans follow open calls even at higher priority (0.072875ms)
+✔ approval readiness follows evidence age, not completion time (0.061125ms)
+✔ changed operational picture invalidates an otherwise fresh proposal (0.552542ms)
+✔ a failed eligibility assessment cannot be offered for approval (0.12325ms)
+✔ background results belong to their originating incident and epoch (0.084791ms)
+✔ reserved proposals remain recorded decisions after other changes (0.056666ms)
+✔ unknown or future incident timestamps never produce invalid waiting times (1.143542ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 85.3805
+(node:48122) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+World Model conformance: implementation = /Users/raiyanjaz/Developer/projects/north-star/vendor/world-model/src/index.ts
+
+  PASS sid-001 stable ids: diacritics and NBSP normalize identically (NFKD + strip marks)
+  PASS sid-002 stable ids: distinct names stay distinct (no over-normalization)
+  PASS band-001 merge bands at the boundaries: 0.85 auto, 0.84 review, 0.82 review, 0.81 new
+  PASS prov-001 writes without provenance are rejected
+  PASS idem-001 ingest idempotency: same batch twice produces an empty diff
+  PASS idem-002 the idempotency check can fail: a mutated batch changes the shape
+  PASS bitemp-001 bitemporal edges: a superseding edge closes the old one; point-in-time queries respect validity
+  PASS audit-001 every mutation writes an audit entry in order
+
+  8/8 checks passed
+PASS: 74 deliverable files contain no configured secret values
