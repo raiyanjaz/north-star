@@ -19,7 +19,8 @@ print('PASS: '+str(count)+' deliverable files contain no configured secret value
 import sys
 if '--live' in sys.argv:
  from urllib.request import urlopen
- for path in ['/api/state','/api/world','/api/health']:
-  with urlopen('http://127.0.0.1:4317'+path,timeout=10) as response:b=response.read()
-  if any(s in b for s in secrets):raise SystemExit('FAIL: configured secret in API response')
- print('PASS: state, engine and health API responses contain no configured secrets')
+ for city in ['toronto','seattle']:
+  for path in ['/api/state','/api/world','/api/health']:
+   with urlopen('http://127.0.0.1:4317'+path+'?city='+city,timeout=10) as response:b=response.read()
+   if any(s in b for s in secrets):raise SystemExit('FAIL: configured secret in API response')
+ print('PASS: both cities state, engine and health API responses contain no configured secrets')

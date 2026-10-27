@@ -35,9 +35,10 @@ class AgentCoordinator:
             self.arc.sim.save(state); self.arc.sim.log('agent-control', {'enabled': enabled})
         self.log(None, 'Agent resumed.' if enabled else 'Agent paused; any in-flight assessment may finish.')
 
-    def inspect(self, now=None):
+    def inspect(self, now=None, state=None, recs=None):
         now = time.time() if now is None else now
-        state = self.arc.sim.read(); recs = self.arc.sim.latest_recommendations()
+        state = self.arc.sim.read() if state is None else state
+        recs = self.arc.sim.latest_recommendations() if recs is None else recs
         with self.arc.jobs_lock:
             running = {j['incident_id']: j for j in self.arc.jobs.values() if j['status'] == 'running'}
         with self.lock:
@@ -48,14 +49,15 @@ class AgentCoordinator:
         enabled = state.get('agent_enabled', True)
         for incident in sorted(state['incidents'], key=priority_key):
             iid = incident['id']; rec = recs.get(iid)
-            coord = commitments(incident, state, recs, now)
+            issues = incident_issues(incident)
+            coord = commitments(incident, state, recs, now) if incident['status'] == 'open' and not issues else {'units': {}, 'slots': {}, 'signature': '[]'}
             fingerprint = (state['epoch'], state['version'], incident.get('incident_revision', 0), coord['signature'])
             info = {'state': 'queued', 'reason': 'Queued for automatic assessment.', 'fingerprint': fingerprint}
             if incident['status'] != 'open':
                 info.update(state='reserved', reason='Assignment reserved by the dispatcher.')
-            elif incident_issues(incident):
+            elif issues:
                 watching = incident.get('public_feed_status') in ('missing', 'stale') and not incident.get('service')
-                info.update(state='watching' if watching else 'needs_input', reason=' · '.join(incident_issues(incident)))
+                info.update(state='watching' if watching else 'needs_input', reason=' · '.join(issues))
             elif iid in running:
                 if current_proposal(rec,incident,state,now) and not proposal_conflict(rec,coord,state):
                     info.update(state='awaiting_approval',reason='Plan ready. ARC is refreshing its evidence in the background.')
@@ -90,8 +92,8 @@ class AgentCoordinator:
             statuses[iid] = {k:v for k,v in info.items() if k != 'fingerprint'}
         return state, statuses, work
 
-    def snapshot(self):
-        state, statuses, _ = self.inspect()
+    def snapshot(self, state=None, recs=None):
+        state, statuses, _ = self.inspect(state=state, recs=recs)
         with self.lock:
             return {'enabled': state.get('agent_enabled', True), 'states': statuses,
                     'events': list(self.events), 'error': self.error}

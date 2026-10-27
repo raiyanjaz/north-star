@@ -31,6 +31,13 @@ class SupervisorTests(unittest.TestCase):
   s=self.sim.read()
   for i in s['incidents']:i.update(public_source='Toronto Fire',public_feed_status='present',priority=None)
   self.sim.save(s);self.agent.tick();self.assertEqual(self.calls,[]);self.assertTrue(all(v['state']=='needs_input' for v in self.agent.snapshot()['states'].values()))
+ def test_feed_history_does_not_repeat_resource_coordination(self):
+  s=self.sim.read()
+  s['incidents'] += [dict(s['incidents'][0],id='history-'+str(n),public_source='Toronto Fire',public_feed_status='missing',priority=None,service=None,equipment=None) for n in range(1000)]
+  with patch('agent_control.commitments',wraps=commitments) as calculate:
+   _,states,_=self.agent.inspect(state=s,recs={})
+  self.assertEqual(calculate.call_count,2)
+  self.assertEqual(states['history-999']['state'],'watching')
  def test_pausing_keeps_resources_and_prevents_new_work(self):
   before=self.sim.read();self.agent.set_enabled(False);self.agent.tick();after=self.sim.read();self.assertEqual(self.calls,[]);self.assertEqual(after['version'],before['version']);self.assertEqual(after['fleet'],before['fleet'])
  def test_fresh_plan_waits_for_approval_then_refreshes_automatically(self):

@@ -167,3 +167,53 @@ The agent can be paused/resumed from the map toolbar. Pause prevents new automat
 work while allowing an in-flight assessment to finish. The UI/API shows agent work,
 awaiting approvals, resource waits, missing input, and recent agent events. Every
 approval and rejection remains a dispatcher action.
+
+
+## City isolation: Toronto and Seattle
+
+The server owns one ARC instance per allowlisted city. Each instance has separate
+SQLite resources/recommendations, public adapters, route caches, and World Model
+process/storage. Seattle uses `data/seattle`; Toronto retains its existing paths.
+A shared inference lock serializes Nightshift work across both cities. Each
+workspace retains its own automatic supervisor and budget.
+
+Every UI API request includes `?city=toronto` or `?city=seattle`; navigation reloads
+the workspace so in-flight responses and browser drafts cannot change another
+city. Selection and incident-source filters use separate session-storage keys.
+Unknown city IDs fail validation. The feed bridge maps `/feeds/{kind}` to Toronto
+and `/feeds/seattle/{kind}` to Seattle independently of query parameters.
+Zetaris `ARC_SEATTLE` is additive; the Toronto namespace is unchanged.
+
+Seattle's SODA adapter reads the last four hours using Seattle local time, retains
+Pacific timezone offsets, and normalizes by durable incident number. Full
+snapshots at the configured result limit are rejected rather than silently
+truncated. Freshness uses the publisher's rowsUpdatedAt watermark as well as
+retrieval time. Failed snapshots preserve cached data but block new ingestion.
+Call disappearance requires review and never automatically resolves the call.
+Seattle pickup bounds are checked both in the form/map picker and on the server.
+
+Seattle resources use explicit SEA-prefixed IDs. Receiving capabilities, slots,
+unit identities and locations are scenario inputs, with real approximate hospital
+geography. The scenario controls, resource commitments, alternative selection,
+state/revision checks, atomic approvals and evidence validation use the same
+implementation as Toronto. No model-generated clinical triage is introduced.
+
+
+## Workspace navigation performance
+
+Live API responses remain `Cache-Control: no-store`; text/JSON responses use gzip
+when requested. Static JavaScript, styles and local map extracts use content-based
+ETags with mandatory revalidation, so switching cities reuses unchanged files and
+source edits take effect immediately. The server caches encoded static assets by
+file revision and accepts a larger navigation request backlog.
+
+Initial state retrieval starts while the HTML's map scripts load. The incident
+queue renders as soon as state arrives, independently of the selected proposal
+request. Large cached street layers are constructed only when the online basemap
+is delayed/unavailable; the fallback remains available for later failures.
+
+Coordinator snapshots reuse one state/recommendation read. Incomplete and reserved
+calls do not calculate resource commitments, and only cases with recommendations
+can contribute commitments. Latest recommendation reads use an indexed epoch/case
+lookup rather than decoding every historical route payload. Eligibility, proposal
+freshness, city isolation and atomic approval checks remain authoritative.

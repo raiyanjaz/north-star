@@ -1,0 +1,60 @@
+{
+  "api": [
+    {
+      "city": "toronto",
+      "state_ms": [
+        103.8,
+        64.3,
+        65.4
+      ],
+      "wire_bytes": 454570,
+      "decoded_bytes": 3500806,
+      "cases": 1018
+    },
+    {
+      "city": "seattle",
+      "state_ms": [
+        47.4,
+        48.6,
+        4.3
+      ],
+      "wire_bytes": 13809,
+      "decoded_bytes": 95314,
+      "cases": 58
+    }
+  ],
+  "resources_preserved": true,
+  "at": "2026-10-27T17:36:19.061Z",
+  "browser_switches": [
+    {
+      "city": "toronto",
+      "ready_ms": 426
+    },
+    {
+      "city": "seattle",
+      "ready_ms": 207
+    },
+    {
+      "city": "toronto",
+      "ready_ms": 309
+    },
+    {
+      "city": "seattle",
+      "ready_ms": 193
+    }
+  ],
+  "map_readiness": [
+    {
+      "city": "toronto",
+      "state_ready_ms": 338,
+      "map_ready_ms": 370
+    },
+    {
+      "city": "seattle",
+      "state_ready_ms": 191,
+      "map_ready_ms": 200
+    }
+  ],
+  "offline_fallback_verified": true,
+  "concurrent_navigation_requests_passed": 10
+}

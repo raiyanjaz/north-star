@@ -1,20 +1,23 @@
 """ARC local application. UI/API on loopback; synthetic feeds on a separate port."""
-import argparse, concurrent.futures, json, mimetypes, os, threading, time, uuid
+import argparse, concurrent.futures, gzip, hashlib, json, mimetypes, os, threading, time, uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 from simulation import Simulation, ROOT, stamp
 from integrations import Federation, World, Routes, refresh_public_roads
 from decision import evaluate
 from agent import Agent
-from public_context import PublicContext, CAMERA_IMAGES
+from public_context import PublicContext, CAMERA_IMAGES, refresh_seattle_roads
+from cities import city_config
 from incident_intake import incident_issues
 from agent_control import AgentCoordinator
 from coordination import proposal_conflict
 
 class ARC:
- def __init__(self,directory,start_agent=True,prepare_demo=True):
-  self.directory=directory;self.sim=Simulation(directory/'arc.sqlite');self.world=World(directory);self.routes=Routes(directory/'routes.json');self.jobs={};self.jobs_lock=threading.Lock();self.analysis_lock=threading.Lock()
-  self.public_context=PublicContext(refresh_public_roads,directory,on_update=self.sim.sync_public)
+ def __init__(self,directory,start_agent=True,prepare_demo=True,city="toronto",analysis_lock=None):
+  self.city=city;self.config=city_config(city);directory.mkdir(parents=True,exist_ok=True)
+  self.roads_fetch=refresh_seattle_roads if city=="seattle" else refresh_public_roads
+  self.directory=directory;self.sim=Simulation(directory/'arc.sqlite',city);self.world=World(directory);self.routes=Routes(directory/'routes.json');self.jobs={};self.jobs_lock=threading.Lock();self.analysis_lock=analysis_lock or threading.Lock()
+  self.public_context=PublicContext(self.roads_fetch,directory,on_update=self.sim.sync_public,city=city)
   self.public_roads={'mode':'unavailable','records':[],'note':'Refresh public roads to load city context.'};self.last_integration={};self.engine_error=None
   if (directory/'public-roads.json').exists():self.public_roads=dict(json.loads((directory/'public-roads.json').read_text()),mode='cached')
   self.prepare_demo=prepare_demo
@@ -25,22 +28,20 @@ class ARC:
   return self.world.call('record',items=items,runId='version-'+str(s['version']))
  def view(self):
   self.sim.sync_public(self.public_context.snapshot())
-  s=self.sim.read()
-  agent_state=self.coordinator.snapshot()
+  with self.sim.lock:
+   s=self.sim.read();latest=self.sim.latest_recommendations()
+  agent_state=self.coordinator.snapshot(state=s,recs=latest)
   for incident in s['incidents']:
    incident['assessment_blockers']=incident_issues(incident)
    incident['agent_state']=agent_state['states'].get(incident['id'],{}).get('state','queued')
    incident['agent_reason']=agent_state['states'].get(incident['id'],{}).get('reason','')
-  with self.sim.lock:
-   rows=self.sim.db.execute('SELECT payload FROM recommendations ORDER BY rowid DESC').fetchall()
   proposals={}
-  for row in rows:
-   r=json.loads(row[0]);iid=r['incident_id']
+  for iid,r in latest.items():
    if iid not in proposals and r.get('simulation_epoch')==s['epoch']:
     proposals[iid]={k:r.get(k) for k in ['id','version','incident_revision','decision','approvable','evidence_epoch','created_epoch','status']}
     proposals[iid].update(ambulance_id=(r.get('selected') or {}).get('ambulance_id'),hospital_id=(r.get('selected') or {}).get('hospital_id'))
   assessments=[{k:j.get(k) for k in ['id','incident_id','status','stage','error','simulation_epoch','automatic']} for j in list(self.jobs.values()) if j.get('simulation_epoch')==s['epoch'] and j['status']=='running']
-  return dict(s,agent=agent_state,proposals=proposals,assessments=assessments,public_context=self.public_context.snapshot(),public_roads=self.public_roads,integrations=self.last_integration,engine_error=self.engine_error,simulation=True)
+  return dict(s,city=self.config,agent=agent_state,proposals=proposals,assessments=assessments,public_context=self.public_context.snapshot(),public_roads=self.public_roads,integrations=self.last_integration,engine_error=self.engine_error,simulation=True)
  def start_analysis(self,incident_id,request,preferred_id=None,automatic=False,trigger=None,fingerprint=None):
   if fingerprint is None:
    s=self.sim.read();incident=next((i for i in s['incidents'] if i['id']==incident_id),None)
@@ -68,10 +69,10 @@ class ARC:
   if s['ai_offline']:raise RuntimeError('Nightshift failure scenario active. No AI explanation generated.')
   agent=Agent();tools,plan_receipt=agent.plan(request);trace=[{'tool':'Nemotron tool plan','status':'complete','detail':', '.join(tools)}]
   if 'refresh_public_roads' in tools:
-   job['stage']='Refreshing public road context';self.public_roads=refresh_public_roads(self.directory/'public-roads.json')
+   job['stage']='Refreshing public road context';self.public_roads=self.roads_fetch(self.directory/'public-roads.json')
   job['stage']='Federating fleet, hospitals and roads through Zetaris'
   if s['zetaris_offline']:raise RuntimeError('Zetaris failure scenario active. No direct-feed substitution was used.')
-  groups,z=Federation().snapshot();self.last_integration['zetaris']=z
+  groups,z=Federation(self.city).snapshot();self.last_integration['zetaris']=z
   if z['version']!=s['version']:raise RuntimeError('Conditions changed while evidence was collected. Reassess.')
   trace.append({'tool':'federate_resources','status':'complete','detail':str(z['rows'])+' rows from three REST sources; '+str(z['duration_ms'])+' ms'})
   job['stage']='Calculating eligible assignments and road-network routes';coordination=self.sim.coordination(incident_id);job['fingerprint']=(s['epoch'],s['version'],incident.get('incident_revision',0),coordination['signature']);result=evaluate(incident,groups,self.routes,preferred_id,coordination)
@@ -112,27 +113,58 @@ class ARC:
   self.sim.store_rec(rec);self.last_integration['nightshift']=receipt
   return rec
 
+class ARCServer(ThreadingHTTPServer):
+ # Two open workspaces can request many local assets at once during navigation.
+ request_queue_size=64
+
 class Handler(BaseHTTPRequestHandler):
  server_version='ARC'
+ asset_cache={}
+ asset_lock=threading.Lock()
  def log_message(self,*args):pass
  @property
- def arc(self):return self.server.arc
+ def arc(self):
+  parts=urlsplit(self.path);city=parse_qs(parts.query).get('city',['toronto'])[0]
+  if self.server.feed_only:city='seattle' if parts.path.startswith('/feeds/seattle/') else 'toronto'
+  city_config(city)
+  return self.server.arcs[city] if hasattr(self.server,'arcs') else self.server.arc
  def reply(self,status,data,ctype='application/json'):
-  b=json.dumps(data,ensure_ascii=False).encode() if ctype=='application/json' else data
-  self.send_response(status);self.send_header('Content-Type',ctype);self.send_header('Content-Length',str(len(b)));self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff');self.send_header('Referrer-Policy','strict-origin-when-cross-origin');self.end_headers();self.wfile.write(b)
+  b=json.dumps(data,ensure_ascii=False,separators=(',',':')).encode() if ctype=='application/json' else data
+  compressed=len(b)>1024 and self.accepts_gzip()
+  if compressed:b=gzip.compress(b,compresslevel=1)
+  self.send_response(status);self.send_header('Content-Type',ctype);self.send_header('Content-Length',str(len(b)));self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff');self.send_header('Referrer-Policy','strict-origin-when-cross-origin')
+  if compressed:self.send_header('Content-Encoding','gzip');self.send_header('Vary','Accept-Encoding')
+  self.end_headers();self.wfile.write(b)
+ def accepts_gzip(self):
+  for value in self.headers.get('Accept-Encoding','').split(','):
+   parts=value.strip().lower().split(';')
+   if parts[0]=='gzip' and not any(p.strip() in ('q=0','q=0.0','q=0.00','q=0.000') for p in parts[1:]):return True
+  return False
+ def static(self,file):
+  stat=file.stat();key=str(file);revision=(stat.st_mtime_ns,stat.st_size)
+  with self.asset_lock:
+   cached=self.asset_cache.get(key)
+   if cached is None or cached['revision']!=revision:
+    raw=file.read_bytes();cached={'revision':revision,'raw':raw,'gzip':gzip.compress(raw,compresslevel=1),'etag':hashlib.sha256(raw).hexdigest()}
+    self.asset_cache[key]=cached
+  compressed=self.accepts_gzip();etag='"'+cached['etag']+('-gzip' if compressed else '')+'"'
+  unchanged=self.headers.get('If-None-Match')==etag
+  self.send_response(304 if unchanged else 200)
+  self.send_header('Cache-Control','public, max-age=0, must-revalidate');self.send_header('ETag',etag);self.send_header('Vary','Accept-Encoding')
+  if not unchanged:
+   b=cached['gzip' if compressed else 'raw'];self.send_header('Content-Type',mimetypes.guess_type(str(file))[0] or 'application/octet-stream');self.send_header('Content-Length',str(len(b)));self.send_header('X-Content-Type-Options','nosniff')
+   if compressed:self.send_header('Content-Encoding','gzip')
+  self.end_headers()
+  if not unchanged:self.wfile.write(b)
  def do_GET(self):
   path=urlsplit(self.path).path
   try:
    if self.server.feed_only:
-    if path.startswith('/feeds/') and path.split('/')[-1] in ['fleet','hospitals','roads']:return self.reply(200,self.arc.sim.feed(path.split('/')[-1]))
+    if path in [prefix+kind for prefix in ['/feeds/','/feeds/seattle/'] for kind in ['fleet','hospitals','roads']]:return self.reply(200,self.arc.sim.feed(path.split('/')[-1]))
     return self.reply(404,{'error':'Not found'})
    if path=='/api/state':return self.reply(200,self.arc.view())
    if path.startswith('/api/recommendations/'):
-    incident=path.split('/')[-1];epoch=self.arc.sim.read()['epoch']
-    with self.arc.sim.lock:
-     rows=self.arc.sim.db.execute('SELECT payload FROM recommendations ORDER BY rowid DESC').fetchall()
-    found=next((json.loads(r[0]) for r in rows if json.loads(r[0]).get('incident_id')==incident and json.loads(r[0]).get('simulation_epoch')==epoch),None)
-    return self.reply(200,found)
+    return self.reply(200,self.arc.sim.latest_recommendation(path.split('/')[-1]))
    if path=='/api/public':return self.reply(200,self.arc.public_context.snapshot())
    if path.startswith('/api/cameras/'):
     camera=path.split('/')[-1]
@@ -148,8 +180,15 @@ class Handler(BaseHTTPRequestHandler):
     job=self.arc.jobs.get(path.split('/')[-1]);return self.reply(200 if job else 404,job or {'error':'Job not found'})
    if path=='/api/health':return self.reply(200,{'app':'ARC','status':'online','world_model':self.arc.world.call('inspect')['engine']})
    if path=='/':path='/index.html'
-   if path not in ['/index.html','/app.js','/style.css','/leaflet.js','/leaflet.css','/toronto-map.geojson','/dispatch-model.mjs','/agent-workspace.css','/maplibre-gl.js','/maplibre-gl.css','/leaflet-maplibre-gl.js']:return self.reply(404,{'error':'Not found'})
-   file=ROOT/'web'/path[1:];return self.reply(200,file.read_bytes(),mimetypes.guess_type(str(file))[0] or 'application/octet-stream')
+   if path not in ['/index.html','/app.js','/style.css','/leaflet.js','/leaflet.css','/toronto-map.geojson','/dispatch-model.mjs','/agent-workspace.css','/maplibre-gl.js','/maplibre-gl.css','/leaflet-maplibre-gl.js','/seattle-map.geojson']:return self.reply(404,{'error':'Not found'})
+   file=ROOT/'web'/path[1:]
+   if path!='/index.html':return self.static(file)
+   content=file.read_bytes()
+   if path=='/index.html':
+    config=self.arc.config
+    content=content.decode().replace('Toronto operations',config['name']+' operations').replace('Toronto incident, unit and hospital map',config['name']+' incident, unit and hospital map').replace('Toronto public information',config['name']+' public information').replace('Cached Toronto streets','Cached '+config['name']+' streets').replace('<script src="/leaflet.js">','<script>window.ARC_CITY='+json.dumps(config)+';window.ARC_INITIAL_STATE=fetch("/api/state?city='+config['id']+'").then(r=>r.ok?r.json():null).catch(()=>null);</script><script src="/leaflet.js">').encode()
+   return self.reply(200,content,mimetypes.guess_type(str(file))[0] or 'application/octet-stream')
+  except ValueError:return self.reply(400,{'error':'Invalid request or city workspace.'})
   except Exception:return self.reply(503,{'error':'Service unavailable. Check local runtime.'})
  def do_POST(self):
   if self.server.feed_only:return self.reply(405,{'error':'Read-only synthetic feeds'})
@@ -182,7 +221,13 @@ class Handler(BaseHTTPRequestHandler):
     if not incident:raise ValueError('Public call is no longer in the current feed')
     return self.reply(200,self.arc.sim.add_public_review(incident,body.get('service'),body.get('equipment'),body.get('priority')))
    if path=='/api/scenario':return self.reply(200,self.arc.sim.scenario(body.get('name'),body.get('incident_id')))
-   if path=='/api/reset':return self.reply(200,self.arc.sim.reset())
+   if path=='/api/reset':
+    workspace=self.arc
+    with workspace.sim.lock:
+     workspace.sim.reset()
+     if workspace.prepare_demo:workspace.sim.load_demo_intake()
+     result=workspace.sim.read()
+    return self.reply(200,result)
    if path=='/api/decision':
     self.arc.sim.sync_public(self.arc.public_context.snapshot())
     r=self.arc.sim.decide(body.get('id'),body.get('action'))
@@ -190,23 +235,24 @@ class Handler(BaseHTTPRequestHandler):
     except Exception:self.arc.engine_error='Assignment saved, but World Model sync failed. Reassess after restoring engine.'
     return self.reply(200,r)
    if path=='/api/roads/refresh':
-    self.arc.public_roads=refresh_public_roads(self.arc.directory/'public-roads.json');return self.reply(200,self.arc.public_roads)
+    self.arc.public_roads=self.arc.roads_fetch(self.arc.directory/'public-roads.json');return self.reply(200,self.arc.public_roads)
    return self.reply(404,{'error':'Not found'})
   except (ValueError,TypeError):return self.reply(409,{'error':str(__import__('sys').exc_info()[1])})
   except Exception:return self.reply(503,{'error':'Operation failed. Check services and retry.'})
 
 def main():
  p=argparse.ArgumentParser();p.add_argument('--port',type=int,default=4317);p.add_argument('--feed-port',type=int,default=4318);p.add_argument('--data-dir',default=str(ROOT/'data'));args=p.parse_args()
- directory=__import__('pathlib').Path(args.data_dir);directory.mkdir(exist_ok=True,parents=True);arc=ARC(directory)
+ directory=__import__('pathlib').Path(args.data_dir);directory.mkdir(exist_ok=True,parents=True);inference_lock=threading.Lock()
+ arcs={city:ARC(directory if city=='toronto' else directory/city,city=city,analysis_lock=inference_lock) for city in ['toronto','seattle']}
+ arc=arcs['toronto']
  servers=[]
  for host,port,feed in [('127.0.0.1',args.port,False),('0.0.0.0',args.feed_port,True)]:
-  server=ThreadingHTTPServer((host,port),Handler);server.arc=arc;server.feed_only=feed;servers.append(server)
+  server=ARCServer((host,port),Handler);server.arc=arc;server.arcs=arcs;server.feed_only=feed;servers.append(server)
   threading.Thread(target=server.serve_forever,daemon=True).start()
  print('ARC ready at http://127.0.0.1:'+str(args.port),flush=True)
  try:threading.Event().wait()
  except KeyboardInterrupt:
   for server in servers:server.shutdown()
-  arc.coordinator.stop.set()
-  arc.public_context.stop.set()
-  arc.world.close()
+  for workspace in arcs.values():
+   workspace.coordinator.stop.set();workspace.public_context.stop.set();workspace.world.close()
 if __name__=='__main__':main()

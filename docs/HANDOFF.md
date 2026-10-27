@@ -1,5 +1,27 @@
 # ARC handoff — current workspace
 
+## Seattle added — October 27, 2026
+
+City selector in the header opens Toronto or Seattle; direct URL:
+http://127.0.0.1:4317/?city=seattle. Both launch together. Seattle state, routes
+and Meterless history live under data/seattle; Zetaris namespace ARC_SEATTLE
+uses /feeds/seattle/fleet, /hospitals and /roads on the existing feed bridge.
+The registration script adds both cities without changing existing sources.
+
+Seattle Fire/EMS public calls synchronize by incident number, with Pacific times,
+publisher freshness and explicit intake. TomTom traffic/routing is live; WSDOT
+state-road closure context is optional. No Seattle hospital-wait, police or camera
+feed is claimed. See SIMULATION-NOTES.md for all exercise data boundaries.
+
+68 Python tests + 14 workspace tests + 8 upstream engine checks passed. Real-service
+acceptance covered a live public call, intake, routes, explanation, destination
+reassessment, obsolete-approval rejection, reservation, rejection, World Model,
+and automatic preparation without auto-approval. Toronto's original epoch,
+resources and two reservations were preserved. Evidence:
+artifacts/seattle-live-validation.json. Seattle acceptance resets only Seattle
+exercise state, then resumes the agent; invoke scripts/live-check-seattle.py --reset
+only when that workspace can be reset. Both agents remain enabled.
+
 ## Run
 `./run.sh`, then http://127.0.0.1:4317. Preserve private .env and keep Zetaris /
 OrbStack and Nightshift running. First installation only, while ARC is running:

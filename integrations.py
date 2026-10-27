@@ -34,16 +34,19 @@ class World:
 FEDERATED_SQL=' UNION ALL '.join("SELECT '%s' AS kind, to_json(r) AS payload FROM ARC_DISPATCH.%s LATERAL VIEW explode(records) AS r"%(kind,kind) for kind in ['fleet','hospitals','roads'])
 
 class Federation:
- def __init__(self):self.client=ZetarisClient()
+ def __init__(self,city='toronto'):
+  from cities import city_config
+  city_config(city)
+  self.client=ZetarisClient();self.sql=FEDERATED_SQL if city=='toronto' else FEDERATED_SQL.replace('ARC_DISPATCH.','ARC_SEATTLE.')
  def snapshot(self):
-  start=time.monotonic();r=self.client.query(FEDERATED_SQL,200)
+  start=time.monotonic();r=self.client.query(self.sql,200)
   groups={'fleet':[],'hospitals':[],'roads':[]}
   for row in r['data']:
    kind,payload=row[0],row[1]; groups[kind].append(json.loads(payload))
   if not all(groups.values()):raise ZetarisError('Federated snapshot missing required sources')
   versions={int(x['version']) for rows in groups.values() for x in rows}
   if len(versions)!=1:raise ZetarisError('Feeds changed during federation. Reassess.')
-  return groups,{'status':'online','query':FEDERATED_SQL,'rows':len(r['data']),'duration_ms':round((time.monotonic()-start)*1000),'at':stamp(),'version':versions.pop()}
+  return groups,{'status':'online','query':self.sql,'rows':len(r['data']),'duration_ms':round((time.monotonic()-start)*1000),'at':stamp(),'version':versions.pop()}
 
 class Routes:
  def __init__(self,path):self.path=Path(path);self.lock=threading.RLock();self.cache=json.loads(self.path.read_text()) if self.path.exists() else (json.loads((ROOT/'fixtures/routes.json').read_text()) if (ROOT/'fixtures/routes.json').exists() else {})

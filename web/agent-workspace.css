@@ -42,3 +42,5 @@ main.agent-workspace{display:grid;grid-template-columns:246px minmax(360px,1fr) 
 .agent-workspace .incident-card.selected{box-shadow:none;border-color:#cdd5d0;background:#f0f3f1}
 .agent-command{border-color:#dce1dd;border-radius:5px}.agent-command strong{color:#27332d}
 @media(prefers-reduced-motion:reduce){.agent-orb.running{animation:none}}
+
+#city-selector{font:inherit;font-weight:500;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:5px;padding:7px 24px 7px 9px;max-width:190px}header{gap:20px}@media(max-width:700px){#city-selector{max-width:145px;font-size:11px}header{gap:10px;padding:0 12px}.header-right{gap:6px}#system-status{display:none}}

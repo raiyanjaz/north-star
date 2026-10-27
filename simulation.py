@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from incident_intake import public_key, relevant_call, valid_pickup, incident_issues
 from coordination import commitments, current_proposal, proposal_conflict
+from cities import city_config
 
 ROOT=Path(__file__).parent
 
@@ -27,7 +28,8 @@ INCIDENTS=[
 ]
 
 class Simulation:
- def __init__(self,path):
+ def __init__(self,path,city="toronto"):
+  self.city=city;self.config=city_config(city)
   Path(path).parent.mkdir(parents=True,exist_ok=True)
   self.db=sqlite3.connect(str(path),check_same_thread=False,isolation_level=None)
   self.db.row_factory=sqlite3.Row; self.lock=threading.RLock()
@@ -35,6 +37,7 @@ class Simulation:
 CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS recommendations (id TEXT PRIMARY KEY,payload TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY,at TEXT,event TEXT,payload TEXT);
+CREATE INDEX IF NOT EXISTS recommendation_case ON recommendations(json_extract(payload,'$.simulation_epoch'),json_extract(payload,'$.incident_id'));
 ''')
   if not self.db.execute('SELECT 1 FROM state').fetchone(): self.reset()
  def read(self):
@@ -44,7 +47,9 @@ CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY,at TEXT,event TEXT,payl
  def reset(self):
   with self.lock:
    old=self.read() if self.db.execute('SELECT 1 FROM state').fetchone() else {'version':0}
-   s={'version':old['version']+1,'epoch':stamp(),'fleet':FLEET,'hospitals':HOSPITALS,'incidents':[dict(i,status='open',received_at=stamp(time.time()-120+n*45)) for n,i in enumerate(INCIDENTS)],
+   profile=json.loads((ROOT/'fixtures/seattle.json').read_text()) if self.city=='seattle' else {'fleet':FLEET,'hospitals':HOSPITALS,'incidents':INCIDENTS}
+   initial=[dict(i,prepared_intake=True,incident_revision=0,requirements_source='prepared_demo',pickup_source='prepared_demo',notes='Prepared Seattle exercise intake; not facts supplied by the public feed.') for i in profile['incidents']] if self.city=='seattle' else profile['incidents']
+   s={'city':self.city,'version':old['version']+1,'epoch':stamp(),'fleet':profile['fleet'],'hospitals':profile['hospitals'],'incidents':[dict(i,city=self.city,status='open',received_at=stamp(time.time()-120+n*45)) for n,i in enumerate(initial)],
       'scenario':'baseline','feed_stale':False,'zetaris_offline':False,'ai_offline':False,'closures':[], 'assignments':[]}
    self.save(s); self.log('reset',{'version':s['version']}); return self.read()
  def feed(self,kind):
@@ -60,13 +65,13 @@ CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY,at TEXT,event TEXT,payl
     latest=self.db.execute("SELECT payload FROM recommendations WHERE json_extract(payload,'$.incident_id')=? AND json_extract(payload,'$.simulation_epoch')=? ORDER BY rowid DESC LIMIT 1",(incident_id,s['epoch'])).fetchone()
    else:latest=self.db.execute('SELECT payload FROM recommendations ORDER BY rowid DESC LIMIT 1').fetchone()
    rec=json.loads(latest[0]) if latest else {}; selected=rec.get('selected') or {}
-   hid=selected.get('hospital_id','H-SMH'); aid=selected.get('ambulance_id','A-12')
+   hid=selected.get('hospital_id',s['hospitals'][0]['id']); aid=selected.get('ambulance_id',s['fleet'][0]['id'])
    if name=='hospital-unavailable':
     for h in s['hospitals']:
      if h['id']==hid: h['accepting']=0
    if name=='road-closure':
     coords=selected.get('transport_route',{}).get('coordinates',[])
-    p=coords[max(0,len(coords)-3)] if coords else [-79.3777,43.6534]
+    p=coords[max(0,len(coords)-3)] if coords else [s['hospitals'][0]['lon'],s['hospitals'][0]['lat']]
     s['closures']=[{'id':'SIM-C1','name':'Simulated destination approach closure','lon':p[0],'lat':p[1],'radius_m':100,'active':1}]
    if name=='fleet-busy':
     for a in s['fleet']:
@@ -79,12 +84,12 @@ CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY,at TEXT,event TEXT,payl
  def sync_public(self,sources):
   with self.lock:
    s=self.read();changed=False
-   for kind in ['fire','police']:
+   for kind in (['fire'] if self.city=='seattle' else ['fire','police']):
     source=sources.get(kind,{})
     fresh=source.get('mode')=='live' and not source.get('stale',True)
     seen=set()
     for row in source.get('records',[]):
-     try:key=public_key(kind,row)
+     try:key=public_key(kind,row,self.city)
      except (ValueError,KeyError,TypeError):continue
      seen.add(key)
      incident=next((i for i in s['incidents'] if i.get('public_key')==key),None)
@@ -93,12 +98,12 @@ CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY,at TEXT,event TEXT,payl
       incident=next((i for i in s['incidents'] if i.get('public_source')=='Toronto Police Service' and i.get('public_observed_at')==row.get('observed_at') and (i.get('public_location') or i['name'])==row.get('location')),None)
      if incident is None:
       if not fresh or not relevant_call(kind,row):continue
-      incident={'id':'LIVE-'+key,'public_key':key,'public_kind':kind,
-       'public_source':'Toronto Fire Services' if kind=='fire' else 'Toronto Police Service',
+      incident={'id':'LIVE-'+key,'city':self.city,'public_key':key,'public_kind':kind,
+       'public_source':self.config['fire_name'] if kind=='fire' else self.config['police_name'],
        'name':row.get('location') or 'Location not published','status':'open','received_at':row.get('observed_at') or stamp(),
        'priority':None,'service':None,'equipment':None,'lat':row.get('lat'),'lon':row.get('lon'),
-       'pickup_source':'public' if valid_pickup(row.get('lat'),row.get('lon')) else None,
-       'location_precision':'public mapped intersection' if kind=='police' else 'public street / postal area',
+       'pickup_source':'public' if valid_pickup(row.get('lat'),row.get('lon'),self.city) else None,
+       'location_precision':'public mapped address' if self.city=='seattle' else 'public mapped intersection' if kind=='police' else 'public street / postal area',
        'incident_revision':0,'requirements_source':None,'notes':'','source_review_required':False}
       s['incidents'].append(incident);changed=True
      incoming={'public_key':key,'public_kind':kind,'public_call_type':row.get('name'),
@@ -138,7 +143,7 @@ CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY,at TEXT,event TEXT,payl
    service=body.get('service');equipment=body.get('equipment');priority=body.get('priority')
    if service not in ['general','cardiac','trauma','neuro','pediatric'] or equipment not in ['general','advanced'] or priority not in ['Priority 1','Priority 2','Priority 3']:
     raise ValueError('Choose a priority, service and equipment requirement')
-   if not valid_pickup(body.get('lat'),body.get('lon')):raise ValueError('Confirm a valid pickup location within Toronto')
+   if not valid_pickup(body.get('lat'),body.get('lon'),self.city):raise ValueError('Confirm a valid pickup location within '+self.config['name'])
    lat=float(body['lat']);lon=float(body['lon']);label=str(body.get('pickup_label','')).strip()[:200]
    pickup_source=incident.get('pickup_source')
    if lat!=incident.get('lat') or lon!=incident.get('lon') or label!=(incident.get('pickup_label') or incident['name']):pickup_source='dispatcher'
@@ -174,10 +179,15 @@ CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY,at TEXT,event TEXT,payl
  def latest_recommendations(self):
   with self.lock:
    epoch=self.read()['epoch'];result={}
-   for row in self.db.execute('SELECT payload FROM recommendations ORDER BY rowid DESC').fetchall():
+   rows=self.db.execute("SELECT payload FROM recommendations WHERE rowid IN (SELECT max(rowid) FROM recommendations WHERE json_extract(payload,'$.simulation_epoch')=? GROUP BY json_extract(payload,'$.incident_id'))",(epoch,)).fetchall()
+   for row in rows:
     r=json.loads(row[0])
     if r.get('simulation_epoch')==epoch and r['incident_id'] not in result:result[r['incident_id']]=r
    return result
+ def latest_recommendation(self,incident_id):
+  with self.lock:
+   row=self.db.execute("SELECT payload FROM recommendations WHERE json_extract(payload,'$.simulation_epoch')=? AND json_extract(payload,'$.incident_id')=? ORDER BY rowid DESC LIMIT 1",(self.read()['epoch'],incident_id)).fetchone()
+   return json.loads(row[0]) if row else None
  def coordination(self,incident_id):
   with self.lock:
    s=self.read();incident=next(i for i in s['incidents'] if i['id']==incident_id)
@@ -186,12 +196,12 @@ CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY,at TEXT,event TEXT,payl
   with self.lock:
    s=self.read()
    if s.get('demo_intake_loaded'):return False
-   profile=json.loads((ROOT/'fixtures/demo-intake.json').read_text())
+   profile=json.loads((ROOT/('fixtures/seattle.json' if self.city=='seattle' else 'fixtures/demo-intake.json')).read_text())
    public=[i for i in s['incidents'] if i.get('public_feed_status')=='present']
    for n,case in enumerate(profile['incidents']):
     if any(i['id']==case['id'] for i in s['incidents']):continue
     reference=public[n%len(public)] if public else None
-    s['incidents'].append(dict(case,status='open',received_at=stamp(time.time()+n*.001),incident_revision=0,
+    s['incidents'].append(dict(case,city=self.city,status='open',received_at=stamp(time.time()+n*.001),incident_revision=0,
      prepared_intake=True,requirements_source='prepared_demo',pickup_source='prepared_demo',
      location_precision='prepared exercise location',notes='Prepared exercise intake; clinical requirements and pickup are supplied by the demo profile.',
      public_reference={k:reference.get(k) for k in ['public_source','public_key','public_call_type','public_location','public_observed_at']} if reference else None))

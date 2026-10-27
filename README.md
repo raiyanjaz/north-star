@@ -1,7 +1,7 @@
 # ARC — Assisted Routing & Coordination
 
 NorthStar's Open Agent Hackathon 2026 application. Primary track: **The Agent That
-Can Explain Why**. A Toronto dispatcher decision-support simulation with real
+Can Explain Why**. A Toronto and Seattle dispatcher decision-support simulation with real
 Zetaris federation, Nightshift/NVIDIA Nemotron inference and Meterless World Model.
 
 ## Start here — teammates and coding agents
@@ -438,3 +438,36 @@ public incident references remain separate. Read docs/SIMULATION-NOTES.md for th
 full boundary. The map-led workspace keeps the inbox, map, resources and selected
 decision visible together. Live background maps use OpenStreetMap; the City street
 extract remains the fallback.
+
+
+### Toronto and Seattle workspaces
+
+Use **City workspace** in the header to switch between Toronto and Seattle, or
+open [Seattle](http://127.0.0.1:4317/?city=seattle) directly. Both start with the
+same launcher. On upgrade, restart ARC and run the source registration script
+once if using `run.sh`; the guided launcher registers sources automatically.
+
+Seattle has its own SQLite state, route cache and Meterless history under
+`data/seattle/`, plus additive Zetaris namespace `ARC_SEATTLE`. Toronto keeps
+its existing `data/arc.sqlite`, history and `ARC_DISPATCH` sources. Approvals,
+resets, scenarios, pause/resume and intake edits apply only to the selected city.
+
+Seattle ingests the official Seattle Fire Department's reported calls from the
+last four hours, refreshes every minute, deduplicates by incident number, and
+checks the publisher's update timestamp. This is a public dispatch-history feed;
+listed calls are not established to be active or unassigned. Missing priority,
+service and equipment requirements require explicit dispatcher input.
+Three separate prepared exercise intakes let ARC demonstrate automatic operation.
+
+TomTom supplies Seattle traffic observations and both directed route legs.
+WSDOT Seattle-area state-road closures provide optional context; an empty response
+means the source returned no matching records. No live Seattle police, camera,
+hospital-wait or hospital-acceptance feed is claimed. Seattle hospital receiving
+operations and response-unit availability remain exercise data. The offline
+street extract comes from OpenStreetMap, with attribution in the map.
+
+Validation: `./scripts/check.sh`. Real sponsor acceptance testing of **only the
+Seattle exercise workspace**: `"$(scripts/python-path.sh)" scripts/live-check-seattle.py --reset`.
+This explicitly resets Seattle, exercises intake/reassessment/reservation, then
+leaves a fresh Seattle workspace with automatic assessment enabled. It checks that
+Toronto's reservations remain unchanged. Do not run it during a Seattle demo.

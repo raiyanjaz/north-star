@@ -56,6 +56,7 @@ def main():
     if healthy():
         from integrations import Federation
         Federation().snapshot()
+        Federation('seattle').snapshot()
         print('ARC is already running: ' + URL)
         if not args.no_browser:
             webbrowser.open(URL)
@@ -73,6 +74,7 @@ def main():
         subprocess.run([sys.executable, str(ROOT / 'scripts/register-sources.py')], check=True)
         from integrations import Federation
         Federation().snapshot()
+        Federation('seattle').snapshot()
         print('ARC is ready. Keep this window open. Close it or press Ctrl+C to stop.', flush=True)
         if not args.no_browser:
             webbrowser.open(URL)

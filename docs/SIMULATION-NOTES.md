@@ -113,3 +113,25 @@ not change fleet availability or consume slots. Only dispatcher approval makes t
 existing local reservation. No crew notification, acknowledgment, travel or hospital
 contact is invented. Agent refresh/rate-limit settings are application policies,
 not Toronto clinical or dispatch standards.
+
+
+## Seattle workspace
+
+- Live: official Seattle Fire/EMS reported calls, source timestamps, approximate
+  published coordinates; TomTom traffic samples and directed routing; WSDOT
+  state-road closure context within Seattle coverage.
+- Public calls cover the last four hours, not a complete active/unassigned EMS
+  queue. No active/closed status or clinical priority is inferred from call type.
+- Exercise inputs: all Seattle response units, positions/equipment/availability;
+  hospital capabilities/acceptance/slots; three SEA-DEMO prepared intake profiles;
+  controlled disruptions and reservations. Hospital names and approximate locations
+  use public geography; operational resource records are not live hospital data.
+- No live Seattle hospital waits, acceptance, police or camera adapter is connected.
+- Live-call requirements stay blank until explicitly entered by the dispatcher.
+  Prepared cases are separate from public cases and labeled as prepared intake.
+- Cached Seattle street geometry: OpenStreetMap via Overpass, fetched October 27,
+  2026; partial coverage 47.585..47.675 N, -122.36..-122.28 E. Standard map layers
+  cover the broader city when online. Attribution: OpenStreetMap contributors,
+  ODbL https://www.openstreetmap.org/copyright.
+- Approvals reserve only city-local exercise resources. No real crews, dispatch
+  centers or hospitals receive messages.

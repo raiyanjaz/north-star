@@ -59,7 +59,7 @@ class IntakeTests(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,'Call details changed'):self.complete(i)
   self.assertEqual(self.public()[0]['incident_revision'],ready['incident_revision'])
  def test_incomplete_call_is_blocked_before_any_ai_or_routing(self):
-  sources=feed([call()]);self.sim.sync_public(sources);arc=object.__new__(ARC);arc.sim=self.sim;arc.public_context=SimpleNamespace(snapshot=lambda:sources)
+  sources=feed([call()]);self.sim.sync_public(sources);arc=object.__new__(ARC);arc.city='toronto';arc.sim=self.sim;arc.public_context=SimpleNamespace(snapshot=lambda:sources)
   with patch('app.Agent') as agent:
    with self.assertRaisesRegex(ValueError,'Choose a priority'):arc.analyze(self.public()[0]['id'],'assess',{})
    agent.assert_not_called()
@@ -69,7 +69,7 @@ class IntakeTests(unittest.TestCase):
   self.assertEqual(self.public()[0]['status'],'open');self.assertEqual(self.sim.read()['assignments'],[])
  def test_case_edit_during_inference_discards_result(self):
   sources=feed([call()]);self.sim.sync_public(sources);i=self.complete(self.public()[0]);arc=object.__new__(ARC)
-  arc.sim=self.sim;arc.public_context=SimpleNamespace(snapshot=lambda:sources);arc.last_integration={}
+  arc.city='toronto';arc.sim=self.sim;arc.public_context=SimpleNamespace(snapshot=lambda:sources);arc.last_integration={}
   arc.routes=SimpleNamespace(get=lambda a,b:{'duration_s':30,'distance_m':100,'coordinates':[[a['lon'],a['lat']],[b['lon'],b['lat']]],'source':'test','mode':'test'})
   arc.sync_world=lambda s:{'prior':{},'events':0};arc.world=SimpleNamespace(call=lambda *a,**k:self.fail('Changed result must not be recorded'))
   groups={k:self.sim.feed(k)['records'] for k in ['fleet','hospitals','roads']};version=self.sim.read()['version']
@@ -85,7 +85,7 @@ class IntakeTests(unittest.TestCase):
   sources=feed([call()]);self.sim.sync_public(sources);i=self.complete(self.public()[0]);r=self.proposal(i)
   r['selected'].update(id='A-12 / H-TGH',name='Medic 12 → Toronto General',pickup_min=.5,transport_min=.5)
   r['simulation_epoch']=self.sim.read()['epoch'];self.sim.db.execute('UPDATE recommendations SET payload=? WHERE id=?',(__import__('json').dumps(r),r['id']))
-  arc=object.__new__(ARC);arc.sim=self.sim;arc.public_context=SimpleNamespace(snapshot=lambda:sources);arc.last_integration={}
+  arc=object.__new__(ARC);arc.city='toronto';arc.sim=self.sim;arc.public_context=SimpleNamespace(snapshot=lambda:sources);arc.last_integration={}
   arc.routes=SimpleNamespace(get=lambda a,b:{'duration_s':30,'distance_m':100,'coordinates':[[a['lon'],a['lat']],[b['lon'],b['lat']]],'source':'test','mode':'test'})
   arc.sync_world=lambda s:{'prior':{},'events':0};arc.world=SimpleNamespace(call=lambda *a,**k:self.fail('Rejected refresh must not be recorded'))
   groups={k:self.sim.feed(k)['records'] for k in ['fleet','hospitals','roads']};version=self.sim.read()['version']

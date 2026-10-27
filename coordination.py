@@ -24,7 +24,9 @@ def current_proposal(rec, incident, state, now=None):
 
 def commitments(incident, state, recommendations, now=None):
     units, slots, claims = {}, {}, []
-    for other in sorted(state['incidents'], key=priority_key):
+    # Only incidents with a recommendation can hold a resource commitment.
+    # Public feed history may contain thousands of calls without any proposal.
+    for other in sorted((i for i in state['incidents'] if i['id'] in recommendations), key=priority_key):
         if priority_key(other) >= priority_key(incident):
             continue
         rec = recommendations.get(other['id'])

@@ -8,19 +8,76 @@ import re
 import threading
 import time
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 from simulation import stamp
 from network import tls_context
+from cities import city_config
+from incident_intake import valid_pickup
 
 POLICE = 'https://services.arcgis.com/S9th0jAJ7bqgIRjw/arcgis/rest/services/C4S_Public_NoGO/FeatureServer/0'
 FIRE = 'https://www.toronto.ca/data/fire/livecad.xml'
 CAMERAS = 'https://opendata.toronto.ca/transportation/tmc/rescucameraimages/Data/tmcearthcameras.json'
 ER_WATCH = 'https://www.er-watch.ca/'
 CAMERA_IMAGES = 'https://opendata.toronto.ca/transportation/tmc/rescucameraimages/CameraImages/'
+SEATTLE_FIRE = 'https://data.seattle.gov/resource/kzjm-xkqj.json'
+SEATTLE_META = 'https://data.seattle.gov/api/views/kzjm-xkqj.json'
+SEATTLE_ROADS = 'https://data.wsdot.wa.gov/arcgis/rest/services/TravelInformation/TravelInfoRoadAlerts/FeatureServer/2'
+
+
+def seattle_records(data):
+    if not isinstance(data, list) or len(data) >= 1000:
+        raise ValueError('Seattle snapshot invalid or truncated')
+    rows = {}
+    for r in data:
+        iid = r['incident_number']
+        if not re.fullmatch(r'[A-Za-z0-9-]{1,50}', iid):
+            raise ValueError('Invalid Seattle incident ID')
+        dt = datetime.fromisoformat(r['datetime'])
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo('America/Los_Angeles'))
+        lat, lon = r.get('latitude'), r.get('longitude')
+        if not valid_pickup(lat, lon, 'seattle'):
+            lat = lon = None
+        # One incident can appear repeatedly; the descending query puts its latest row first.
+        rows.setdefault(iid, {'id': iid, 'name': r['type'], 'location': r.get('address', ''),
+                             'lat': float(lat) if lat is not None else None,
+                             'lon': float(lon) if lon is not None else None,
+                             'observed_at': dt.isoformat()})
+    return list(rows.values())
+
+
+def refresh_seattle_roads(path):
+    try:
+        query = urlencode({'where': '1=1', 'geometry': '-122.46,47.48,-122.23,47.75',
+                           'geometryType': 'esriGeometryEnvelope', 'inSR': 4326, 'outSR': 4326,
+                           'spatialRel': 'esriSpatialRelIntersects', 'outFields': '*',
+                           'returnGeometry': 'true', 'f': 'json', 'resultRecordCount': 1000})
+        data = json.loads(fetch_text(SEATTLE_ROADS + '/query?' + query))
+        if 'features' not in data or data.get('exceededTransferLimit'):
+            raise ValueError('Road snapshot invalid or truncated')
+        rows = []
+        for feature in data['features']:
+            a = feature['attributes']; paths = feature.get('geometry', {}).get('paths', [])
+            points = [p for line in paths for p in line]
+            if not points:
+                continue
+            lon, lat = points[len(points)//2][:2]
+            rows.append({'id': str(a['OBJECTID']), 'name': a.get('Road', 'Road alert'),
+                         'lat': lat, 'lon': lon, 'description': a.get('HeadlineMessage'),
+                         'updated_ms': a.get('LastModifiedDate'), 'direction': a.get('RoadDirection'),
+                         'impact': 'Closed' if a.get('RoadClosedFlag') else 'Restriction', 'paths': paths})
+        result = {'source': 'WSDOT Seattle-area road closures', 'url': SEATTLE_ROADS,
+                  'fetched_at': stamp(), 'fetched_epoch': time.time(), 'mode': 'live', 'records': rows,
+                  'note': 'State-road alerts intersecting Seattle coverage. Context only; city streets may be absent. TomTom supplies traffic-informed routing.'}
+        Path(path).write_text(json.dumps(result)); return result
+    except Exception:
+        if Path(path).exists():
+            return dict(json.loads(Path(path).read_text()), mode='cached', error='Live WSDOT refresh unavailable')
+        return {'mode': 'unavailable', 'records': [], 'error': 'WSDOT unavailable; controlled closure checks remain active'}
 
 
 def fetch_text(url):
@@ -124,7 +181,9 @@ def setting(name):
 
 
 class PublicContext:
-    def __init__(self, roads_fetch, directory, start=True, on_update=None):
+    def __init__(self, roads_fetch, directory, start=True, on_update=None, city='toronto'):
+        self.city = city
+        city_config(city)
         self.on_update = on_update
         self.lock = threading.RLock()
         self.sources = {}
@@ -152,6 +211,15 @@ class PublicContext:
         sources = {'police': (POLICE, 300), 'fire': (FIRE, 300), 'cameras': (CAMERAS, 86400),
                    'hospitals': (ER_WATCH, 900), 'roads': ('https://secure.toronto.ca/opendata/cart/road_restrictions/v3?format=csv', 300),
                    'traffic': ('https://developer.tomtom.com/traffic-api', 120)}
+        if self.city == 'seattle':
+            sources.update(fire=(SEATTLE_FIRE, 600), roads=(SEATTLE_ROADS, 300))
+            if kind not in ('fire', 'roads', 'traffic'):
+                with self.lock:
+                    self.sources[kind] = {'mode': 'unavailable', 'records': [], 'ttl_s': 600,
+                        'error': {'police': 'Seattle uses the Fire/EMS incident feed; no live police adapter is connected.',
+                                  'hospitals': 'No live Seattle hospital wait or receiving-status feed is connected.',
+                                  'cameras': 'No Seattle camera adapter is connected.'}[kind]}
+                return
         url, ttl = sources[kind]
         with self.lock:
             old = self.sources.get(kind, {})
@@ -167,7 +235,14 @@ class PublicContext:
                 meta = json.loads(fetch_text(POLICE + '?f=json&_arc_refresh=' + str(int(time.time()//60))))
                 observed = stamp(meta['editingInfo']['dataLastEditDate'] / 1000)
             elif kind == 'fire':
-                rows, observed = fire_records(fetch_text(FIRE))
+                if self.city == 'seattle':
+                    cutoff = (datetime.now(ZoneInfo('America/Los_Angeles')) - timedelta(hours=4)).replace(tzinfo=None).isoformat(timespec='seconds')
+                    query = urlencode({'$where': "datetime >= '" + cutoff + "'", '$order': 'datetime DESC', '$limit': 1000})
+                    rows = seattle_records(json.loads(fetch_text(SEATTLE_FIRE + '?' + query)))
+                    metadata = json.loads(fetch_text(SEATTLE_META))
+                    observed = stamp(metadata['rowsUpdatedAt'])
+                else:
+                    rows, observed = fire_records(fetch_text(FIRE))
                 if not observed:
                     raise ValueError('Missing fire publisher timestamp')
             elif kind == 'cameras':
@@ -184,7 +259,8 @@ class PublicContext:
                 if not key:
                     raise ValueError('Traffic provider key required')
                 rows = []
-                for name, lat, lon in [('University & Queen', 43.6508, -79.3865), ('College & Spadina', 43.658, -79.4003), ('King & Church', 43.6499, -79.3753)]:
+                samples = [('Pike & 4th', 47.6102, -122.3360), ('Broadway & E Pine', 47.6150, -122.3208), ('University District', 47.6613, -122.3131)] if self.city == 'seattle' else [('University & Queen', 43.6508, -79.3865), ('College & Spadina', 43.658, -79.4003), ('King & Church', 43.6499, -79.3753)]
+                for name, lat, lon in samples:
                     flow = json.loads(fetch_text('https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/15/json?' + urlencode({'key': key, 'point': f'{lat},{lon}', 'unit': 'KMPH'})))['flowSegmentData']
                     if any(not math.isfinite(float(flow[k])) or float(flow[k]) < 0 for k in ['currentSpeed','freeFlowSpeed','confidence']) or float(flow['confidence']) > 1:
                         raise ValueError('Invalid traffic reading')

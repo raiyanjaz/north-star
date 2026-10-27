@@ -1,48 +1,74 @@
 import {elapsedSeconds,durationLabel,sortedIncidents,proposalState,belongsToSelection,nextAction,workflowBucket} from './dispatch-model.mjs';
 const $=s=>document.querySelector(s);
+const city=window.ARC_CITY;
+const storageKey=key=>city.id==='toronto'?key:key+'.'+city.id;
+$('#clock').title=city.name+' local time ('+city.timezone+')';
+$('#city-selector').value=city.id;
+$('.brand').href='/?city='+city.id;
+$('#city-selector').onchange=e=>{window.location.href='/?city='+encodeURIComponent(e.target.value);};
+const [south,west,north,east]=city.bounds;
+for(const [name,min,max] of [['lat',south,north],['lon',west,east]]){const input=$(`[name="${name}"]`);input.min=(min+.000001).toFixed(6);input.max=(max-.000001).toFixed(6);}
+if(city.id==='seattle'){
+ for(const select of [$('#queue-source'),$('#public-kind')]){const police=select.querySelector('[value="police"]');police.hidden=true;police.disabled=true;police.textContent='Police (not connected)';}
+ $('#queue-source [value="fire"]').textContent='Seattle Fire / EMS';
+ $('.map-disclosure').textContent='Ordinary driving estimates · Seattle operations';
+}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let state=null,selected=sessionStorage.getItem('arc.selected'),rec=null,activeJob=null;
+let state=null,selected=sessionStorage.getItem(storageKey('arc.selected')),rec=null,activeJob=null;
 let recRenderKey='',mapRenderKey='',lastEpoch=null,loadSequence=0;
 const records=new Map(),errors=new Map(),activities=[],scrollPositions=new Map(),detailStates=new Map(),intakeDrafts=new Map();
 let renderedIncident=null,resourceKey='',headingKey='',queueStage='all',overviewInitialized=false;
-const map=L.map('map',{zoomControl:false,preferCanvas:true,minZoom:10,maxZoom:19,scrollWheelZoom:false}).setView([43.657,-79.387],14);
+const map=L.map('map',{zoomControl:false,preferCanvas:true,minZoom:10,maxZoom:19,scrollWheelZoom:false}).setView(city.center,city.zoom);
 L.control.zoom({position:'bottomright'}).addTo(map);
 const layers=L.layerGroup().addTo(map);
 const publicLayers=L.layerGroup().addTo(map);
 const pickupDraftLayer=L.layerGroup().addTo(map);
 let publicRenderKey='',publicMapKey='',intakeOwner='',pickingPickup=null;
+// Keep local streets underneath remote backgrounds, including partially loaded tiles.
+map.createPane('cachedStreets');
+map.getPane('cachedStreets').style.zIndex=150;
+map.getPane('cachedStreets').style.pointerEvents='none';
 const fallbackBase=L.layerGroup().addTo(map);
-map.attributionControl.addAttribution('City of Toronto centreline · cached extract');
+map.attributionControl.addAttribution(city.basemap_credit);
 // Vector cartography keeps labels sharp; existing Leaflet overlays remain authoritative.
 const streetTiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'});
-streetTiles.on('tileload',()=>{map.removeLayer(fallbackBase);map.attributionControl.removeAttribution('City of Toronto centreline · cached extract');$('#map-source').textContent='Standard street map · vector background unavailable';});
-streetTiles.on('tileerror',()=>{fallbackBase.addTo(map);map.attributionControl.addAttribution('City of Toronto centreline · cached extract');$('#map-source').textContent='Street background unavailable · cached downtown streets shown';});
-let vectorBase=null,vectorReady=false,vectorFailed=false;
-function fallbackMap(){if(vectorFailed)return;vectorFailed=true;if(vectorBase&&map.hasLayer(vectorBase))map.removeLayer(vectorBase);streetTiles.addTo(map);$('#map-source').textContent='Loading standard street fallback…';}
+streetTiles.on('tileload',()=>{$('#map-source').textContent='Standard street map · cached streets beneath unavailable tiles';});
+streetTiles.on('tileerror',()=>{fallbackBase.addTo(map);map.attributionControl.addAttribution(city.basemap_credit);$('#map-source').textContent='Street background unavailable · cached downtown streets shown';});
+let vectorBase=null,vectorReady=false,vectorFailed=false,cachedStreetsPromise=null;
+function fallbackMap(){if(vectorFailed)return;vectorFailed=true;loadCachedStreets();map.getPane('cachedStreets').style.display='';if(vectorBase&&map.hasLayer(vectorBase))map.removeLayer(vectorBase);streetTiles.addTo(map);$('#map-source').textContent='Loading standard street fallback…';}
 try{
  vectorBase=L.maplibreGL({style:'https://tiles.openfreemap.org/styles/positron',interactive:false}).addTo(map);
  const vector=vectorBase.getMaplibreMap();
- vector.on('load',()=>{if(vectorFailed)return;vectorReady=true;map.removeLayer(fallbackBase);map.attributionControl.removeAttribution('City of Toronto centreline · cached extract');$('#map-source').textContent='OpenFreeMap · street map';});
+ vector.on('load',()=>{if(vectorFailed)return;vectorReady=true;map.getPane('cachedStreets').style.display='none';$('#map-source').textContent='OpenFreeMap · street map';});
  vector.on('error',()=>{fallbackMap();});
  setTimeout(()=>{if(!vectorReady)fallbackMap();},15000);
 }catch{fallbackMap();}
 L.control.scale({position:'bottomleft',imperial:false,maxWidth:90}).addTo(map);
-fetch('/toronto-map.geojson').then(r=>r.json()).then(data=>{
- const roads=L.geoJSON(data,{style:f=>({color:'#fff',weight:f.properties.class.includes('Arterial')?5:2.5,opacity:1,interactive:false})}).addTo(fallbackBase);roads.bringToBack();
- const labelled=new Set(),names=new Set(['University Ave','Queen St W','Queen St E','College St','King St W','King St E','Yonge St','Spadina Ave','Dundas St W','Bay St']);
- for(const f of data.features){const n=f.properties.name;if(!names.has(n)||labelled.has(n))continue;const c=f.geometry.type==='MultiLineString'?f.geometry.coordinates[0]:f.geometry.coordinates,p=c[Math.floor(c.length/2)];if(p&&p[0]>-79.412&&p[0]<-79.362&&p[1]>43.642&&p[1]<43.675){labelled.add(n);L.marker([p[1],p[0]],{interactive:false,keyboard:false,icon:L.divIcon({className:'street-label',html:esc(n),iconSize:[100,12]})}).addTo(fallbackBase);}}
+function loadCachedStreets(){
+ if(cachedStreetsPromise)return cachedStreetsPromise;
+ cachedStreetsPromise=fetch('/'+city.basemap).then(r=>r.json()).then(data=>{
+ const roads=L.geoJSON(data,{pane:'cachedStreets',interactive:false,style:f=>({color:'#fff',weight:f.properties.class.includes('Arterial')?5:2.5,opacity:1})}).addTo(fallbackBase);roads.bringToBack();
+ const labelled=new Set(),names=new Set(city.id==='seattle'?['Pike Street','Pine Street','Broadway','4th Avenue','Denny Way','Madison Street','University Way Northeast']:['University Ave','Queen St W','Queen St E','College St','King St W','King St E','Yonge St','Spadina Ave','Dundas St W','Bay St']);
+ for(const f of data.features){const n=f.properties.name;if(!names.has(n)||labelled.has(n))continue;const c=f.geometry.type==='MultiLineString'?f.geometry.coordinates[0]:f.geometry.coordinates,p=c[Math.floor(c.length/2)];if(p&&p[0]>west&&p[0]<east&&p[1]>south&&p[1]<north){labelled.add(n);L.marker([p[1],p[0]],{pane:'cachedStreets',interactive:false,keyboard:false,icon:L.divIcon({className:'street-label',html:esc(n),iconSize:[100,12]})}).addTo(fallbackBase);}}
 }).catch(()=>toast('Street background unavailable. Resource positions and routes remain visible.'));
-async function api(path,body){const res=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await res.json();if(!res.ok)throw Error(data.error||'Service unavailable');return data;}
+ return cachedStreetsPromise;
+}
+// Build the large offline street layer only if the online basemap is delayed or unavailable.
+setTimeout(()=>{if(!vectorReady)loadCachedStreets();},1200);
+let initialStateRequest=window.ARC_INITIAL_STATE;
+async function api(path,body){const url=new URL(path,window.location.origin);url.searchParams.set('city',city.id);const res=await fetch(url,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await res.json();if(!res.ok)throw Error(data.error||'Service unavailable');return data;}
 function toast(text){$('#toast').textContent=text;$('#toast').style.display='block';setTimeout(()=>$('#toast').style.display='none',5000);}
 function log(text){activities.unshift({text,at:new Date().toISOString()});if(activities.length>7)activities.pop();renderActivity();}
-function renderActivity(){const combined=[...activities,...(state?.agent?.events||[]).map(e=>({text:(e.incident_id?e.incident_id+' · ':'')+e.text,at:e.at}))].sort((a,b)=>b.at.localeCompare(a.at));const rows=combined.length?combined:state?.assignments?.slice(-4).reverse().map(a=>({text:a.incident_id+' · assignment reserved',at:a.at}))||[];$('#activity').innerHTML=rows.length?rows.slice(0,4).map(a=>`<p><time>${esc(new Date(a.at).toLocaleTimeString('en-CA',{hour:'2-digit',minute:'2-digit'}))}</time> &nbsp; ${esc(a.text)}</p>`).join(''):'<p>No activity this session.</p>';}
+function renderActivity(){const combined=[...activities,...(state?.agent?.events||[]).map(e=>({text:(e.incident_id?e.incident_id+' · ':'')+e.text,at:e.at}))].sort((a,b)=>b.at.localeCompare(a.at));const rows=combined.length?combined:state?.assignments?.slice(-4).reverse().map(a=>({text:a.incident_id+' · assignment reserved',at:a.at}))||[];$('#activity').innerHTML=rows.length?rows.slice(0,4).map(a=>`<p><time>${esc(new Date(a.at).toLocaleTimeString('en-CA',{timeZone:city.timezone,hour:'2-digit',minute:'2-digit'}))}</time> &nbsp; ${esc(a.text)}</p>`).join(''):'<p>No activity this session.</p>';}
 async function load(){
  const seq=++loadSequence;
  try{
-  const next=await api('/api/state');if(seq!==loadSequence)return;
+  const prefetched=initialStateRequest;initialStateRequest=null;
+  const next=(prefetched?await prefetched:null)||await api('/api/state');if(seq!==loadSequence)return;
   if(lastEpoch&&lastEpoch!==next.epoch){records.clear();errors.clear();intakeDrafts.clear();intakeOwner='';pickingPickup=null;pickupDraftLayer.clearLayers();recRenderKey='';mapRenderKey='';}
   lastEpoch=next.epoch;state=next;
   if(!state.incidents.some(i=>i.id===selected))selected=sortedIncidents(state.incidents).find(i=>i.status==='open')?.id||state.incidents[0].id;
+  renderState();
   const target=selected,latest=await api('/api/recommendations/'+target);if(seq!==loadSequence)return;
   if(latest&&latest.simulation_epoch===state.epoch)records.set(target,latest);else records.delete(target);
   $('#system-status').textContent='Workspace connected';$('#system-status').classList.remove('offline');
@@ -51,7 +77,7 @@ async function load(){
  }catch(e){if(seq!==loadSequence)return;$('#system-status').textContent='Workspace unavailable';$('#system-status').classList.add('offline');$('#workspace-status').textContent='Connection lost. The displayed picture may be out of date; approvals are unavailable.';$('#workspace-status').classList.add('attention');$('#analyze').disabled=true;$('#approve')?.setAttribute('disabled','');}
 }
 function caseStatus(proposal,incidentId=selected){return proposalState(proposal,state.version,Date.now(),state.incidents.find(i=>i.id===incidentId));}
-function hasPickup(i){return i.lat!==null&&i.lat!==undefined&&i.lon!==null&&i.lon!==undefined&&Number.isFinite(Number(i.lat))&&Number.isFinite(Number(i.lon));}
+function hasPickup(i){return Boolean(i)&&i.lat!==null&&i.lat!==undefined&&i.lon!==null&&i.lon!==undefined&&Number.isFinite(Number(i.lat))&&Number.isFinite(Number(i.lon));}
 function visibleIncidents(){const scope=$('#queue-source').value;return sortedIncidents(state.incidents.filter(i=>scope==='all'||scope==='public'&&i.public_source||scope==='workspace'&&!i.public_source||scope==='prepared'&&i.prepared_intake||i.public_kind===scope));}
 function queueLabel(i){
  if(i.agent_state)return [({awaiting_approval:'Awaiting your approval',working:'Agent assessing…',queued:'Queued for assessment',needs_input:'Needs your input',waiting:'Waiting · ARC is monitoring',watching:'Feed review',reserved:'Assignment reserved'})[i.agent_state]||'Needs input',['needs_input','waiting'].includes(i.agent_state)?'attention':i.agent_state==='reserved'?'assigned':''];
@@ -72,7 +98,7 @@ function renderQueue(){
  const visible=scoped.filter(i=>queueStage==='all'||workflowBucket(i)===queueStage),rows=groupOrder.flatMap(group=>visible.filter(i=>workflowBucket(i)===group));
  const expanded=new Map([...document.querySelectorAll('#incidents details')].map(d=>[d.dataset.queueGroup,d.open]));
  $('#incident-count').textContent=rows.length;
- $('#queue-feed-status').textContent=['fire','police'].map(k=>{const f=state.public_context?.[k];return (k==='fire'?'Fire':'Police')+': '+(!f?'connecting':f.stale?'stale':f.mode==='live'?'connected':'unavailable');}).join(' · ');
+ $('#queue-feed-status').textContent=(city.id==='seattle'?['fire']:['fire','police']).map(k=>{const f=state.public_context?.[k];return (k==='fire'?'Fire':'Police')+': '+(!f?'connecting':f.stale?'stale':f.mode==='live'?'connected':'unavailable');}).join(' · ');
  const focus=document.activeElement?.dataset?.incident;
  let html='',previousGroup=null;
  for(const i of rows){const group=workflowBucket(i);if(group!==previousGroup){if(previousGroup)html+='</div></details>';const members=rows.filter(x=>workflowBucket(x)===group),open=queueStage===group||members.some(x=>x.id===selected)||(expanded.get(group)??['approval','working'].includes(group));html+=`<details class="queue-group" data-queue-group="${group}" ${open?'open':''}><summary>${groupNames[group]} <span>${members.length}</span></summary><div class="queue-group-items">`;previousGroup=group;}const [label,kind]=queueLabel(i);const since=i.public_source?i.public_observed_at:(i.received_at||state.epoch);
@@ -83,7 +109,7 @@ function renderQueue(){
  document.querySelectorAll('[data-incident]').forEach(b=>{b.onclick=()=>selectIncident(b.dataset.incident);b.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();const index=rows.findIndex(i=>i.id===b.dataset.incident),next=rows[(index+(e.key==='ArrowDown'?1:-1)+rows.length)%rows.length];selectIncident(next.id);document.querySelector(`[data-incident="${next.id}"]`)?.focus();}};});
  if(focus)document.querySelector(`[data-incident="${focus}"]`)?.focus({preventScroll:true});
 }
-async function selectIncident(id){pickingPickup=null;pickupDraftLayer.clearLayers();$('#map').classList.remove('choosing-pickup');scrollPositions.set(selected,$('.case-panel').scrollTop);selected=id;sessionStorage.setItem('arc.selected',id);recRenderKey='';renderState();$('.case-panel').scrollTop=scrollPositions.get(id)||0;await load();}
+async function selectIncident(id){pickingPickup=null;pickupDraftLayer.clearLayers();$('#map').classList.remove('choosing-pickup');scrollPositions.set(selected,$('.case-panel').scrollTop);selected=id;sessionStorage.setItem(storageKey('arc.selected'),id);recRenderKey='';renderState();$('.case-panel').scrollTop=scrollPositions.get(id)||0;await load();}
 function proposedUnits(){return new Set(Object.entries(state.proposals||{}).filter(([iid,p])=>p.decision==='pending'&&p.approvable&&p.version===state.version&&state.agent?.states?.[iid]?.state==='awaiting_approval').map(([,p])=>p.ambulance_id).filter(Boolean));}
 function renderResources(){
  const proposed=proposedUnits();const key=JSON.stringify([state.fleet,state.hospitals,[...proposed]]);if(key===resourceKey)return;resourceKey=key;
@@ -202,11 +228,11 @@ $('#open-scenarios').onclick=()=>$('#scenarios-modal').showModal();
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.close).close());
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d)d.close();}));
 document.querySelectorAll('[data-scenario]').forEach(b=>b.onclick=async()=>{try{await api('/api/scenario',{name:b.dataset.scenario,incident_id:selected});log(selected+' · '+(b.querySelector('strong')?.textContent||b.textContent));$('#scenarios-modal').close();await load();}catch(e){toast(e.message);}});
-$('#reset').onclick=async()=>{try{await api('/api/reset',{});records.clear();errors.clear();intakeDrafts.clear();intakeOwner='';activities.length=0;selected='INC-1042';sessionStorage.setItem('arc.selected',selected);$('#scenarios-modal').close();log('Workspace reset');await load();}catch(e){toast(e.message);}};
-$('#open-evidence').onclick=async()=>{$('#evidence-modal').showModal();$('#evidence-content').textContent='Loading integration evidence…';try{const world=await api('/api/world');const z=rec?.zetaris||state.integrations.zetaris;const n=rec?.ai;$('#evidence-content').innerHTML=`<div class="integration-block"><h3>Zetaris · ${z?'verified product query':'awaiting product assessment'}</h3><p>Three distinct REST sources combined by SQL.  The app does not substitute direct API reads when Zetaris fails.</p><pre>${esc(z?JSON.stringify(z,null,2):'Assess an incident first.')}</pre></div><div class="integration-block"><h3>Nightshift → NVIDIA Nemotron</h3><p>Primary AI provider. The model selects allowed evidence tools and composes explanations from verified evidence IDs. The exact evidence text is rendered by ARC to prevent invented measurements.</p><pre>${esc(n?JSON.stringify(n,null,2):'No completed AI assessment yet.')}</pre></div><div class="integration-block"><h3>Meterless World Model · actual upstream reference</h3><p>Persistent typed entities, provenance, recommendation relationships, historical resource comparisons. Upstream conformance: 8/8 checks. SQLite separately handles transactional simulation reservations.</p><pre>${esc(JSON.stringify({entities:world.entities.length,recent_events_returned:world.events.length,events:world.events.slice(-8)},null,2))}</pre></div><div class="integration-block"><h3>City of Toronto road context · ${esc(state.public_roads.mode)}</h3><p>${esc(state.public_roads.note||state.public_roads.error||'Public point restrictions are contextual, not validated route closure geometry.')}</p><p>${esc(state.public_roads.fetched_at||'Not fetched')} · ${state.public_roads.records.length} records</p><button id="refresh-roads">Refresh public road context</button></div>`;$('#refresh-roads').onclick=async()=>{const b=$('#refresh-roads');b.disabled=true;b.textContent='Refreshing…';try{const r=await api('/api/roads/refresh',{});await load();toast('Public road context: '+r.mode+' · '+r.records.length+' records');$('#open-evidence').click();}catch(e){toast(e.message);}finally{b.disabled=false;}};}catch(e){$('#evidence-content').textContent=e.message;}};
+$('#reset').onclick=async()=>{try{await api('/api/reset',{});records.clear();errors.clear();intakeDrafts.clear();intakeOwner='';activities.length=0;selected=city.id==='seattle'?'SEA-DEMO-101':'INC-1042';sessionStorage.setItem(storageKey('arc.selected'),selected);$('#scenarios-modal').close();log('Workspace reset');await load();}catch(e){toast(e.message);}};
+$('#open-evidence').onclick=async()=>{$('#evidence-modal').showModal();$('#evidence-content').textContent='Loading integration evidence…';try{const world=await api('/api/world');const z=rec?.zetaris||state.integrations.zetaris;const n=rec?.ai;$('#evidence-content').innerHTML=`<div class="integration-block"><h3>Zetaris · ${z?'verified product query':'awaiting product assessment'}</h3><p>Three distinct REST sources combined by SQL.  The app does not substitute direct API reads when Zetaris fails.</p><pre>${esc(z?JSON.stringify(z,null,2):'Assess an incident first.')}</pre></div><div class="integration-block"><h3>Nightshift → NVIDIA Nemotron</h3><p>Primary AI provider. The model selects allowed evidence tools and composes explanations from verified evidence IDs. The exact evidence text is rendered by ARC to prevent invented measurements.</p><pre>${esc(n?JSON.stringify(n,null,2):'No completed AI assessment yet.')}</pre></div><div class="integration-block"><h3>Meterless World Model · actual upstream reference</h3><p>Persistent typed entities, provenance, recommendation relationships, historical resource comparisons. Upstream conformance: 8/8 checks. SQLite separately handles transactional simulation reservations.</p><pre>${esc(JSON.stringify({entities:world.entities.length,recent_events_returned:world.events.length,events:world.events.slice(-8)},null,2))}</pre></div><div class="integration-block"><h3>${esc(city.name)} road context · ${esc(state.public_roads.mode)}</h3><p>${esc(state.public_roads.note||state.public_roads.error||'Public point restrictions are contextual, not validated route closure geometry.')}</p><p>${esc(state.public_roads.fetched_at||'Not fetched')} · ${state.public_roads.records.length} records</p><button id="refresh-roads">Refresh public road context</button></div>`;$('#refresh-roads').onclick=async()=>{const b=$('#refresh-roads');b.disabled=true;b.textContent='Refreshing…';try{const r=await api('/api/roads/refresh',{});await load();toast('Public road context: '+r.mode+' · '+r.records.length+' records');$('#open-evidence').click();}catch(e){toast(e.message);}finally{b.disabled=false;}};}catch(e){$('#evidence-content').textContent=e.message;}};
 $('#close-evidence').onclick=()=>$('#evidence-modal').close();$('#evidence-modal').onclick=e=>{if(e.target===$('#evidence-modal'))$('#evidence-modal').close();};
 setInterval(()=>{
- $('#clock').textContent=new Date().toLocaleTimeString('en-CA',{timeZone:'America/Toronto',hour:'2-digit',minute:'2-digit'});
+ $('#clock').textContent=new Date().toLocaleTimeString('en-CA',{timeZone:city.timezone,hour:'2-digit',minute:'2-digit'});
  document.querySelectorAll('[data-wait-since]').forEach(el=>el.textContent=durationLabel(elapsedSeconds(el.dataset.waitSince)));
  document.querySelectorAll('[data-evidence-epoch]').forEach(el=>el.textContent=durationLabel(Math.max(0,Math.floor(Date.now()/1000-Number(el.dataset.evidenceEpoch))))+' ago');
  if(state){const status=caseStatus(rec);if(status!==$('#decision-status').dataset.lastStatus){$('#decision-status').dataset.lastStatus=status;renderState();}}
@@ -221,7 +247,8 @@ function renderPublic(){
  renderPublicMap(sources);if(key===publicRenderKey)return;publicRenderKey=key;
  const rows=source.records||[];
  const notices={fire:'Fire dispatch activity. Medical locations may be postal areas only. Listed units are fire resources; feed disappearance does not establish resolution.',police:'Public police calls near mapped intersections. Calls remain visible for four hours regardless of on-scene status. Medical-distress calls are excluded.',roads:'Published restrictions include partial and scheduled closures. Context only; these points do not automatically block routes or change travel estimates.',hospitals:'ER Watch public readings. Posted waits are not ambulance acceptance or available receiving slots. Missing or old readings are shown explicitly.',traffic:'Sampled speeds describe nearby segments. Route estimates identify whether traffic was included; neither includes emergency privileges or scene time.'};
- let html=`<p class="public-notice">${notices[kind]}</p><p class="public-freshness ${source.stale||source.mode!=='live'?'attention':''}">${source.mode==='live'?(source.stale?'Last retrieval is stale':'Connected'):source.mode==='cached'?'Cached · refresh failed':'Unavailable'}${source.fetched_at?' · retrieved '+esc(new Date(source.fetched_at).toLocaleTimeString('en-CA')):''}${source.observed_at?' · publisher updated '+esc(publicAge(source.observed_at)):''}${source.error?' · '+esc(source.error):''}</p><div class="public-list">`;
+ if(city.id==='seattle'){notices.fire='Seattle Fire/EMS calls reported in the last four hours. Published coordinates are approximate; the feed does not establish ongoing activity, medical priority or fleet availability. Requirements must be confirmed before assessment.';notices.hospitals='Seattle hospital receiving operations are exercise data. No live hospital waits or acceptance feed is connected.';}
+ let html=`<p class="public-notice">${notices[kind]}</p><p class="public-freshness ${source.stale||source.mode!=='live'?'attention':''}">${source.mode==='live'?(source.stale?'Last retrieval is stale':'Connected'):source.mode==='cached'?'Cached · refresh failed':'Unavailable'}${source.fetched_at?' · retrieved '+esc(new Date(source.fetched_at).toLocaleTimeString('en-CA',{timeZone:city.timezone})):''}${source.observed_at?' · publisher updated '+esc(publicAge(source.observed_at)):''}${source.error?' · '+esc(source.error):''}</p><div class="public-list">`;
  let display=rows;
  if(kind==='police')display=[...rows].sort((a,b)=>String(b.observed_at).localeCompare(String(a.observed_at))).slice(0,30);
  if(kind==='roads'){const i=state.incidents.find(i=>i.id===selected);display=[...rows].sort((a,b)=>publicDistance(a,i)-publicDistance(b,i)).slice(0,20);}
@@ -235,21 +262,21 @@ function renderPublic(){
  }
  if(!display.length)html+='<p class="public-notice">'+(source.mode==='live'?'No records returned by this source.':'Waiting for available source data.')+'</p>';
  html+='</div>';
- if(source.source_url)html+=`<p class="public-freshness"><a href="${esc(source.source_url)}" target="_blank" rel="noopener noreferrer">${kind==='hospitals'?'ER Watch':kind==='traffic'?'TomTom Traffic':'Official source'}</a>${kind==='police'?' · Contains information licensed under the Open Government Licence – Ontario.':''}</p>`;
- if(kind==='traffic'){
+ if(source.source_url)html+=`<p class="public-freshness"><a href="${esc(source.source_url)}" target="_blank" rel="noopener noreferrer">${kind==='hospitals'&&city.id==='toronto'?'ER Watch':kind==='traffic'?'TomTom Traffic':'Official source'}</a>${kind==='police'?' · Contains information licensed under the Open Government Licence – Ontario.':''}</p>`;
+ if(kind==='traffic'&&city.id==='toronto'){
   const i=state.incidents.find(i=>i.id===selected),cameras=[...(sources.cameras?.records||[])].sort((a,b)=>publicDistance(a,i)-publicDistance(b,i)).slice(0,3);
   html+='<p class="public-notice">City traffic cameras · on-demand snapshots. Image capture time is not supplied; a retrieved image may be old.</p>';
   for(const c of cameras)html+=`<details class="public-camera"><summary>Camera ${esc(c.id)} · ${esc(c.name)}</summary><button data-camera="${esc(c.id)}">Load camera snapshot</button><div id="camera-${esc(c.id)}"></div></details>`;
  }
  $('#public-content').innerHTML=html;
  document.querySelectorAll('[data-open-case]').forEach(b=>b.onclick=()=>selectIncident(b.dataset.openCase));
- document.querySelectorAll('[data-camera]').forEach(b=>b.onclick=()=>{const box=document.getElementById('camera-'+b.dataset.camera),img=new Image();img.alt='City of Toronto traffic camera snapshot';img.className='camera-image';img.onload=()=>{box.replaceChildren(img);b.textContent='Refresh snapshot';};img.onerror=()=>{box.textContent='Camera image unavailable.';};img.src='/api/cameras/'+encodeURIComponent(b.dataset.camera)+'?t='+Date.now();});
+ document.querySelectorAll('[data-camera]').forEach(b=>b.onclick=()=>{const box=document.getElementById('camera-'+b.dataset.camera),img=new Image();img.alt=city.name+' traffic camera snapshot';img.className='camera-image';img.onload=()=>{box.replaceChildren(img);b.textContent='Refresh snapshot';};img.onerror=()=>{box.textContent='Camera image unavailable.';};img.src='/api/cameras/'+encodeURIComponent(b.dataset.camera)+'?city='+city.id+'&t='+Date.now();});
 }
 function publicDistance(a,b){return Number.isFinite(Number(a.lat))&&Number.isFinite(Number(a.lon))?Math.hypot((Number(a.lat)-b.lat)*111,(Number(a.lon)-b.lon)*80):Infinity;}
 function renderPublicMap(sources){
  const calls=$('#show-public-calls').checked,roads=$('#show-public-roads').checked;
- const key=JSON.stringify([selected,calls,roads,['police','roads','traffic'].map(k=>[sources[k]?.fetched_at,sources[k]?.stale])]);if(key===publicMapKey)return;publicMapKey=key;publicLayers.clearLayers();
- if(calls)for(const r of sources.police?.records||[])L.circleMarker([r.lat,r.lon],{radius:4,color:'#66718a',weight:1,fillOpacity:.5}).bindTooltip(esc((sources.police.stale?'Cached police call · ':'Police call · ')+r.name+' · '+r.location)).addTo(publicLayers);
+ const key=JSON.stringify([selected,calls,roads,['fire','police','roads','traffic'].map(k=>[sources[k]?.fetched_at,sources[k]?.stale])]);if(key===publicMapKey)return;publicMapKey=key;publicLayers.clearLayers();
+ if(calls)for(const r of [...(sources.police?.records||[]),...(city.id==='seattle'?sources.fire?.records||[]:[])].filter(hasPickup))L.circleMarker([r.lat,r.lon],{radius:4,color:'#66718a',weight:1,fillOpacity:.5}).bindTooltip(esc(((sources[city.id==='seattle'?'fire':'police']?.stale?'Cached call · ':'Public call · '))+r.name+' · '+r.location)).addTo(publicLayers);
  if(roads)for(const r of [...(sources.roads?.records||[])].sort((a,b)=>publicDistance(a,state.incidents.find(i=>i.id===selected))-publicDistance(b,state.incidents.find(i=>i.id===selected))).slice(0,100))if(r.lat&&r.lon)L.circleMarker([r.lat,r.lon],{radius:4,color:'#a4762f',weight:1,fillOpacity:.5}).bindTooltip(esc('Restriction · '+r.name)).addTo(publicLayers);
  const traffic=sources.traffic;if(traffic?.mode==='live'&&!traffic.stale&&traffic.records?.length)map.attributionControl.addAttribution('© TomTom');if(traffic?.mode==='live'&&!traffic.stale)for(const r of traffic.records||[])L.polyline(r.coordinates.map(c=>[c.latitude,c.longitude]),{color:r.closed?'#a33f39':r.speed_kph<r.free_flow_kph*.5?'#c07928':'#39816e',weight:5,opacity:.65}).bindTooltip(esc(r.speed_kph+' km/h observed · '+r.name)).addTo(publicLayers);
 }
@@ -267,10 +294,19 @@ function renderIntake(i){
  for(const field of ['priority','service','equipment','lat','lon','notes'])form.elements[field].value=draft?.[field]??i[field]??'';
  form.elements.pickup_label.value=draft?.pickup_label??i.pickup_label??i.name??'';$('#intake-error').textContent='';$('#reload-intake').hidden=true;panel.open=draft?.open??Boolean(i.assessment_blockers?.length);
 }
-$('#queue-source').value=sessionStorage.getItem('arc.queueSource')||'all';
-$('#queue-source').onchange=()=>{sessionStorage.setItem('arc.queueSource',$('#queue-source').value);renderQueue();};
-$('#pick-pickup').onclick=()=>{pickingPickup=selected;$('#map').classList.add('choosing-pickup');$('#pickup-help').textContent='Click the pickup position on the map, then save the details to confirm it.';$('#fit-map').click();};
-map.on('click',e=>{if(pickingPickup!==selected)return;const form=$('#incident-intake-form');form.elements.lat.value=e.latlng.lat.toFixed(6);form.elements.lon.value=e.latlng.lng.toFixed(6);pickingPickup=null;pickupDraftLayer.clearLayers();L.circleMarker([e.latlng.lat,e.latlng.lng],{radius:7,color:'#3974cc',fillOpacity:.4}).bindTooltip('Unsaved pickup',{permanent:true}).addTo(pickupDraftLayer);$('#map').classList.remove('choosing-pickup');$('#pickup-help').textContent='Pickup point selected. Save the details to confirm it.';toast('Pickup point selected; save incident details to confirm.');});
+$('#queue-source').value=sessionStorage.getItem(storageKey('arc.queueSource'))||'all';
+if(city.id==='seattle'&&$('#queue-source').value==='police')$('#queue-source').value='all';
+$('#queue-source').onchange=()=>{sessionStorage.setItem(storageKey('arc.queueSource'),$('#queue-source').value);renderQueue();};
+$('#pick-pickup').onclick=()=>{
+ pickingPickup=selected;
+ const container=$('#map');
+ container.classList.add('choosing-pickup');
+ $('#pickup-help').textContent='Click the pickup position on the map, then save the details to confirm it.';
+ // Picking should preserve the dispatcher’s view, not refit and fetch a new background.
+ container.scrollIntoView({block:'nearest',behavior:'instant'});
+ requestAnimationFrame(()=>map.invalidateSize({pan:false}));
+};
+map.on('click',e=>{if(pickingPickup!==selected)return;if(e.latlng.lat<=south||e.latlng.lat>=north||e.latlng.lng<=west||e.latlng.lng>=east){toast('Choose a pickup within '+city.name+' coverage.');return;}const form=$('#incident-intake-form');form.elements.lat.value=e.latlng.lat.toFixed(6);form.elements.lon.value=e.latlng.lng.toFixed(6);pickingPickup=null;pickupDraftLayer.clearLayers();L.circleMarker([e.latlng.lat,e.latlng.lng],{radius:7,color:'#3974cc',fillOpacity:.4}).bindTooltip('Unsaved pickup',{permanent:true}).addTo(pickupDraftLayer);$('#map').classList.remove('choosing-pickup');$('#pickup-help').textContent='Pickup point selected. Save the details to confirm it.';toast('Pickup point selected; save incident details to confirm.');});
 $('#incident-intake-form').onsubmit=async e=>{e.preventDefault();const form=e.target,b=form.querySelector('[type="submit"]');b.disabled=true;try{const values=Object.fromEntries(new FormData(form));await api('/api/incidents/details',{...values,incident_id:selected,revision:Number(form.dataset.revision)});pickupDraftLayer.clearLayers();intakeDrafts.delete(selected);intakeOwner='';errors.delete(selected);await load();log(selected+' · dispatcher details saved');toast('Incident details saved.');}catch(error){$('#intake-error').textContent=error.message;$('#reload-intake').hidden=false;await load();}finally{b.disabled=false;}};
 
 $('#reload-intake').onclick=()=>{intakeDrafts.delete(selected);intakeOwner='';renderIntake(state.incidents.find(i=>i.id===selected));};

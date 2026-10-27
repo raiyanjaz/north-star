@@ -212,3 +212,48 @@ live public calls still require missing intake facts before assessment.
 ### Map and decision styling — October 23
 
 59 Python tests, 14 workspace tests, 8 upstream World Model checks and configured-secret scan passed following the vector basemap addition. Browser verification confirmed OpenFreeMap rendered Toronto streets and labels, with route overlays and visible attribution; rationale and guidance no longer use left-accent callouts. Verified desktop and narrow workspace layouts. Existing two reservations survived the app restart; automatic assessment resumed. No approvals or resets were performed.
+
+
+### Seattle second workspace — October 27
+
+- Automated: 68 Python tests, 14 workspace tests, 8 upstream World Model checks;
+  Python compilation, JavaScript syntax, configured-secret scan and diff checks.
+- New tests cover city-specific pickup validation, Seattle timezone and identity,
+  duplicate rows, malformed/truncated snapshots, missing coordinates, cached-feed
+  handling, preserved dispatcher edits after restart, city-isolated reservations
+  and reset, namespaced federation, HTTP workspace/feed routing, and synchronous
+  demo setup during reset.
+- Real sponsor flow: Seattle baseline through ARC_SEATTLE; both TomTom legs;
+  Nightshift receipt identifies NVIDIA Nemotron Ultra. A hospital disruption
+  invalidated the old proposal and changed the destination from Swedish First Hill
+  to Harborview. Revised approval reserved the unit and receiving slot atomically.
+- A real SFD call completed explicit dispatcher intake, assessment and rejection.
+  Seattle Meterless entities/events were verified. Reset then automatic assessment
+  produced a fresh proposal without an automatic reservation.
+- All live checks passed in artifacts/seattle-live-validation.json. The script
+  explicitly resets only Seattle exercise data. The original Toronto epoch,
+  fleet, hospitals and both reservations matched the pre-implementation snapshot.
+- Browser: Seattle source labels, Pacific clock, street map, Seattle pickup inputs,
+  map selection, Toronto/Seattle selector navigation, desktop and 390px layout.
+- No live Seattle hospital waits/receiving status or fleet GPS is claimed. Public
+  calls do not establish active/unassigned status or clinical requirements.
+
+
+### City-switch loading — October 27
+
+95 automated checks passed (73 Python, 14 workspace, 8 engine), including new
+regressions for 1,000 unassessed history calls, latest-case/epoch selection, static
+ETag invalidation, gzip negotiation, and non-cacheable live state.
+
+Measured Toronto state latency before the fix: 3.216 seconds. After the fix,
+three requests took 104, 64 and 65 ms including compressed body transfer. Seattle
+requests took 47, 49 and 4 ms. Browser city switches reached incident/proposal
+readiness in 426, 207, 309 and 193 ms. Additional checks measured complete online
+map readiness at 370 ms for Toronto and 200 ms for Seattle. These are local measured
+results, not latency guarantees for external map providers.
+
+Browser responses confirmed 304 revalidation for unchanged scripts/styles and
+fresh 200 gzip responses for state/proposals. With both remote map providers
+blocked, cached Seattle street labels and the incident queue still appeared.
+Both cities' epochs, fleet/hospital resources and reservations matched the
+pre-change snapshot. Evidence: artifacts/city-switch-validation.json.

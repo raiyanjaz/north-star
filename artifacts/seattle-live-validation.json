@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-27T17:24:57Z",
+  "passed": [
+    "Seattle Zetaris federation, TomTom directed routes and Nightshift model receipt",
+    "Hospital disruption invalidates approval and revises destination with change evidence",
+    "Approval atomically reserves Seattle unit, incident and hospital slot",
+    "Actual Seattle public call \u2192 explicit intake \u2192 complete assessment \u2192 rejection",
+    "Seattle Meterless entities and persistent events exist",
+    "Toronto reservations and resources unchanged",
+    "Automatic assessment produces proposal after reset; no automatic approval"
+  ],
+  "baseline": {
+    "id": "SEA-A-01 / SEA-H-SW",
+    "pickup_min": 4.3,
+    "transport_min": 7.4
+  },
+  "revised": {
+    "id": "SEA-A-01 / SEA-H-HMC",
+    "pickup_min": 4.3,
+    "transport_min": 7.6
+  },
+  "actual_model_receipt": {
+    "model": "nvidia/nemotron-3-ultra-550b-a55b",
+    "label": "Nemotron 3 Ultra 550B A55B",
+    "provider": "nvidia",
+    "kind": "cloud",
+    "tier": "C"
+  },
+  "automatic_proposal": "c0f067e7-c511-42e9-8143-c339866964e0"
+}

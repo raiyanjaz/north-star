@@ -1,0 +1,107 @@
+{
+  "description": "Seattle exercise resources. Names and approximate locations are public reference geography; capabilities, slots, availability and intake are prepared scenario data, not live dispatch facts.",
+  "hospitals": [
+    {
+      "id": "SEA-H-HMC",
+      "name": "Harborview Medical Center",
+      "lat": 47.6039,
+      "lon": -122.324,
+      "capabilities": "general,trauma,neuro",
+      "accepting": 1,
+      "slots": 3
+    },
+    {
+      "id": "SEA-H-UW",
+      "name": "UW Medical Center – Montlake",
+      "lat": 47.6491,
+      "lon": -122.3068,
+      "capabilities": "general,cardiac,neuro",
+      "accepting": 1,
+      "slots": 3
+    },
+    {
+      "id": "SEA-H-SW",
+      "name": "Swedish First Hill",
+      "lat": 47.6092,
+      "lon": -122.3222,
+      "capabilities": "general,cardiac",
+      "accepting": 1,
+      "slots": 3
+    },
+    {
+      "id": "SEA-H-SCH",
+      "name": "Seattle Children’s",
+      "lat": 47.6633,
+      "lon": -122.2811,
+      "capabilities": "pediatric",
+      "accepting": 1,
+      "slots": 2
+    }
+  ],
+  "fleet": [
+    {
+      "id": "SEA-A-01",
+      "name": "Response 01",
+      "lat": 47.6134,
+      "lon": -122.3373,
+      "equipment": "general,advanced",
+      "status": "available"
+    },
+    {
+      "id": "SEA-A-02",
+      "name": "Response 02",
+      "lat": 47.6076,
+      "lon": -122.3229,
+      "equipment": "general,advanced",
+      "status": "available"
+    },
+    {
+      "id": "SEA-A-03",
+      "name": "Response 03",
+      "lat": 47.622,
+      "lon": -122.3155,
+      "equipment": "general",
+      "status": "available"
+    },
+    {
+      "id": "SEA-A-04",
+      "name": "Response 04",
+      "lat": 47.65,
+      "lon": -122.32,
+      "equipment": "general,advanced",
+      "status": "available"
+    }
+  ],
+  "incidents": [
+    {
+      "id": "SEA-DEMO-101",
+      "name": "Pike & 4th",
+      "lat": 47.6102,
+      "lon": -122.336,
+      "priority": "Priority 1",
+      "service": "general",
+      "equipment": "advanced",
+      "description": "Prepared Seattle general transport exercise"
+    },
+    {
+      "id": "SEA-DEMO-102",
+      "name": "Broadway & E Pine",
+      "lat": 47.615,
+      "lon": -122.3208,
+      "priority": "Priority 2",
+      "service": "trauma",
+      "equipment": "advanced",
+      "description": "Prepared Seattle trauma destination exercise"
+    },
+    {
+      "id": "SEA-DEMO-103",
+      "name": "NE 45th & University Way",
+      "lat": 47.6613,
+      "lon": -122.3131,
+      "priority": "Priority 2",
+      "service": "pediatric",
+      "equipment": "general",
+      "description": "Prepared Seattle pediatric transport exercise"
+    }
+  ]
+}

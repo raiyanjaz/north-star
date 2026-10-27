@@ -1,14 +1,15 @@
 """Public incident identity and readiness; no inferred clinical requirements."""
 import hashlib
 import math
+from cities import city_config
 from datetime import datetime, timezone
 
 
-def public_key(kind, row):
+def public_key(kind, row, city='toronto'):
     if kind == 'fire':
         if not row.get('id'):
             raise ValueError('Missing fire incident ID')
-        return 'TFS-' + row['id']
+        return ('SFD-' if city == 'seattle' else 'TFS-') + row['id']
     # Police OBJECTIDs are rebuilt. Use occurrence + published intersection;
     # omit category so reclassification updates the same local case.
     when = datetime.fromisoformat(row['observed_at']).astimezone(timezone.utc).isoformat()
@@ -23,11 +24,12 @@ def relevant_call(kind, row):
     return any(word in category for word in ['COLLISION', 'INDUSTRIAL ACCIDENT', 'PERSONAL INJURY', 'INJURED', 'FIRE'])
 
 
-def valid_pickup(lat, lon):
+def valid_pickup(lat, lon, city='toronto'):
     if isinstance(lat, bool) or isinstance(lon, bool) or lat in (None, '') or lon in (None, ''):
         return False
     try:
-        return math.isfinite(float(lat)) and math.isfinite(float(lon)) and 43.4 < float(lat) < 44 and -80 < float(lon) < -79
+        south, west, north, east = city_config(city)['bounds']
+        return math.isfinite(float(lat)) and math.isfinite(float(lon)) and south < float(lat) < north and west < float(lon) < east
     except (TypeError, ValueError):
         return False
 
@@ -42,7 +44,7 @@ def incident_issues(incident):
         missing.append('Choose a required service')
     if incident.get('equipment') not in ['general', 'advanced']:
         missing.append('Choose required equipment')
-    if not valid_pickup(incident.get('lat'), incident.get('lon')):
+    if not valid_pickup(incident.get('lat'), incident.get('lon'), incident.get('city', 'toronto')):
         missing.append('Confirm a pickup location')
     if incident.get('source_review_required'):
         missing.append('Review the changed public call details')
