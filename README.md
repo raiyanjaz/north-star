@@ -49,8 +49,10 @@ requirements. ARC currently sends inference through Nightshift's configured clou
 provider, rather than downloading Nemotron weights into this repository.
 
 No Python application packages, npm install, frontend build or separate World
-Model service are needed. Python uses its standard library; the World Model,
-conformance runner and browser libraries are vendored.
+Model service are needed to run the checked-in app. Python uses its standard
+library; the World Model, conformance runner and map libraries are vendored.
+The React frontend is supplied as compiled assets. Frontend development requires
+the build tools described below.
 
 ### 1. Get the project
 
@@ -487,3 +489,46 @@ updates. Pausing ARC's assessment agent does not pause journeys already approved
 **Journey controls** on an approved case can advance one stage or end that
 exercise assignment. Existing assignments from older versions use manual progress
 and keep their reservations until explicitly progressed or ended.
+
+
+### React frontend development
+
+ARC uses React and TypeScript for its map-first workspace, with Vite compiling
+`frontend/` into the existing `web/app.js` and `web/style.css` routes. The Python
+API and its city-specific configuration injection are unchanged. Leaflet and the
+MapLibre Positron basemap remain mounted while React manages floating panels.
+`web/dispatch-model.mjs` remains the shared, tested display policy.
+
+The normal launchers use committed build output and do not require a frontend
+server. To edit the frontend, install Node.js 24 and pnpm 11, then run:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm build
+```
+
+`pnpm dev` rebuilds on source changes; run the normal Python launcher alongside
+it and refresh the browser. Commit rebuilt `web/app.js` and `web/style.css` with
+source changes. Do not edit those generated files directly.
+
+Validation:
+
+```sh
+pnpm typecheck
+pnpm test
+pnpm test:ui
+```
+
+Browser tests require ARC running at `http://127.0.0.1:4317` and Google Chrome.
+They intercept API calls with isolated fixtures, so approvals, scenarios and
+reset tests do not mutate the running workspace. They cover the frontend API
+contract, stale/expired/offline approval protection, draft preservation,
+background assessment ownership, map selection and responsive geometry.
+`./scripts/check.sh` continues to run the real Python/backend tests and World
+Model checks, plus TypeScript checks when developer dependencies are installed.
+
+The map now fills the viewport. Use Inbox, Selected case, Resources and Layers
+to open floating panels. Map markers open contextual details; panels can be
+collapsed or closed. Zoom to keeps a selected route clear of the open panels.
+On phones, details open in a bottom sheet, with pickup selection temporarily
+collapsing the sheet. The bottom agent bar retains pause/resume controls.

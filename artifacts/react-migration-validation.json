@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-27",
+  "frontend": "React + TypeScript + Vite",
+  "backend_logic_changed": false,
+  "validation": {
+    "python_tests": 93,
+    "display_policy_tests": 23,
+    "world_model_checks": 8,
+    "browser_tests": 22,
+    "typescript": "passed",
+    "production_build": "passed",
+    "git_diff_check": "passed"
+  },
+  "browser_test_scope": "Isolated API fixtures verify endpoint payloads and UI behavior without changing the running workspace.",
+  "live_checks": {
+    "cities": [
+      "toronto",
+      "seattle"
+    ],
+    "browser_errors": 0,
+    "actions": [
+      "load current workspace",
+      "inspect resource",
+      "zoom to resource",
+      "toggle road layer",
+      "inspect source context",
+      "read integration evidence",
+      "return to selected case"
+    ]
+  },
+  "viewports": [
+    [
+      320,
+      640
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      1024,
+      768
+    ],
+    [
+      1440,
+      900
+    ],
+    [
+      1920,
+      1080
+    ]
+  ],
+  "coverage": [
+    "map marker detail panels",
+    "panel close and collapse",
+    "draft and instruction preservation",
+    "revision conflicts",
+    "pickup selection",
+    "approval and journey control payloads",
+    "expired/changed/offline approval protection",
+    "case ownership of background assessments",
+    "agent pause/resume",
+    "city-scoped requests",
+    "resource and public layers",
+    "responsive panel geometry",
+    "route framing around overlays",
+    "map persistence during polling"
+  ],
+  "screenshots": [
+    "arc-react-toronto.png",
+    "arc-react-seattle.png",
+    "arc-react-mobile.png"
+  ]
+}

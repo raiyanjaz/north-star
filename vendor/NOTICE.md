@@ -13,3 +13,9 @@ No external map tiles are used. OSRM routes retain OpenStreetMap attribution.
 Routes: OSRM public demo service, OpenStreetMap road network. Best-effort availability.
 Public road restrictions: City of Toronto Open Government Licence,
 https://open.toronto.ca/open-data-licence/ . Context only, partial feed.
+
+
+The compiled ARC frontend includes React and React DOM (MIT license). Exact
+versions and transitive dependencies are recorded in `pnpm-lock.yaml`; license
+notices are retained in `web/app.js`. Vite, TypeScript and Playwright are build
+and test dependencies, not additional backend services.

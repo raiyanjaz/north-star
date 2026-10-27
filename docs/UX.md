@@ -163,3 +163,30 @@ the map; complete inventories open in Resources. Source context and activity are
 available in a dialog. No conversational model or fabricated dialogue is added:
 case messages describe actual state, and Why this plan / Compare options use the
 existing evidence and assessment pipeline.
+
+
+### React map workspace — October 27
+
+The viewport is now a continuous map with floating navigation, inbox, contextual
+details and an agent status dock. Existing light typography, Positron cartography,
+blue response routes, teal destination routes and amber review states remain.
+Clicking an incident opens its case review; unit, hospital, station, restriction
+and public-call features open contextual detail cards with Zoom to, collapse and
+close controls. Resource details use current workspace values; public context
+retains source freshness and simulation distinctions.
+
+One contextual panel is open at a time. The inbox can remain open alongside it
+on desktop. On phones, inbox and details share a bottom-sheet position so the
+map remains reachable. Pickup selection collapses the phone sheet until a point
+is selected. Closing a panel or browsing another case preserves unsaved intake
+and expanded case details. Background updates do not recenter the map.
+
+React owns all interface rendering and state. The map is an imperative Leaflet
+component with a stable lifetime, overlay updates, keyboard-selectable features,
+and viewport padding for deliberate focus actions. The backend endpoints,
+assessment rules, reservation checks and journey lifecycle have not changed.
+
+Automated browser validation uses isolated API fixtures for existing endpoint
+payloads and verifies panel geometry at 320, 390, 768, 1024, 1440 and 1920 pixels.
+The Python suite remains the check for backend behavior. Live visual checks use
+the running Toronto and Seattle workspaces without resetting their data.
