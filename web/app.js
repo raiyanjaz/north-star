@@ -6,6 +6,11 @@ $('#clock').title=city.name+' local time ('+city.timezone+')';
 $('#city-selector').value=city.id;
 $('.brand').href='/?city='+city.id;
 $('#city-selector').onchange=e=>{window.location.href='/?city='+encodeURIComponent(e.target.value);};
+if(city.id==='toronto'){
+ const option=document.createElement('option');option.value='stations';option.textContent='Ambulance stations';$('#public-kind').append(option);
+ const note=document.createElement('p');note.className='station-source-note';note.textContent='Station-based positions use official Toronto geography. Unit staging and availability remain scenario data; this is not live vehicle tracking.';
+ $('#resources-modal .resource-dock').before(note);
+}
 const [south,west,north,east]=city.bounds;
 for(const [name,min,max] of [['lat',south,north],['lon',west,east]]){const input=$(`[name="${name}"]`);input.min=(min+.000001).toFixed(6);input.max=(max-.000001).toFixed(6);}
 if(city.id==='seattle'){
@@ -125,7 +130,7 @@ function renderResources(){
  $('#resource-summary').textContent=available+' '+(available===1?'unit':'units')+' free · '+(unavailable?unavailable+' receiving '+(unavailable===1?'facility':'facilities')+' unavailable':state.hospitals.length+' receiving facilities');
  $('#resource-summary').classList.toggle('attention',unavailable>0||available===0);
  $('#fleet-count').textContent=available+' free'+(proposed.size?' · '+proposed.size+' proposed':'');
- $('#fleet').innerHTML=state.fleet.map(a=>`<div class="resource-row"><div><strong>${esc(a.name)}</strong><small>${esc(a.equipment.replaceAll(',',' · '))}</small></div><span class="status ${proposed.has(a.id)&&a.status==='available'?'proposed':esc(a.status)}">${esc(a.status==='assigned'?'reserved':proposed.has(a.id)?'proposed':a.status)}</span></div>`).join('');
+ $('#fleet').innerHTML=state.fleet.map(a=>`<div class="resource-row"><div><strong>${esc(a.name)}</strong><small>${esc(a.equipment.replaceAll(',',' · '))}</small>${a.station_reference?`<p class="station-basis">${esc(a.station_reference.name)} · ${esc(a.station_reference.address)}</p>`:''}</div><span class="status ${proposed.has(a.id)&&a.status==='available'?'proposed':esc(a.status)}">${esc(a.status==='assigned'?'reserved':proposed.has(a.id)?'proposed':a.status)}</span></div>`).join('');
  $('#hospitals').innerHTML=state.hospitals.map(h=>`<div class="resource-row"><div><strong>${esc(h.name)}</strong><small>${esc(h.capabilities.replaceAll(',',' · '))}</small></div><span class="status ${h.accepting&&h.slots>0?'':'closed'}">${h.accepting&&h.slots>0?h.slots+' '+(h.slots===1?'slot':'slots'):'Unavailable'}</span></div>`).join('');
 }
 function renderState(){
@@ -257,6 +262,7 @@ function renderPublic(){
  const rows=source.records||[];
  const notices={fire:'Fire dispatch activity. Medical locations may be postal areas only. Listed units are fire resources; feed disappearance does not establish resolution.',police:'Public police calls near mapped intersections. Calls remain visible for four hours regardless of on-scene status. Medical-distress calls are excluded.',roads:'Published restrictions include partial and scheduled closures. Context only; these points do not automatically block routes or change travel estimates.',hospitals:'ER Watch public readings. Posted waits are not ambulance acceptance or available receiving slots. Missing or old readings are shown explicitly.',traffic:'Sampled speeds describe nearby segments. Route estimates identify whether traffic was included; neither includes emergency privileges or scene time.'};
  if(city.id==='seattle'){notices.fire='Seattle Fire/EMS calls reported in the last four hours. Published coordinates are approximate; the feed does not establish ongoing activity, medical priority or fleet availability. Requirements must be confirmed before assessment.';notices.hospitals='Seattle hospital receiving operations are exercise data. No live hospital waits or acceptance feed is connected.';}
+ notices.stations='Official Toronto ambulance-station locations. ARC stages available scenario units at these sites; the catalogue contains no live vehicle positions, staffing or availability.';
  let html=`<p class="public-notice">${notices[kind]}</p><p class="public-freshness ${source.stale||source.mode!=='live'?'attention':''}">${source.mode==='live'?(source.stale?'Last retrieval is stale':'Connected'):source.mode==='cached'?'Cached · refresh failed':'Unavailable'}${source.fetched_at?' · retrieved '+esc(new Date(source.fetched_at).toLocaleTimeString('en-CA',{timeZone:city.timezone})):''}${source.observed_at?' · publisher updated '+esc(publicAge(source.observed_at)):''}${source.error?' · '+esc(source.error):''}</p><div class="public-list">`;
  let display=rows;
  if(kind==='police')display=[...rows].sort((a,b)=>String(b.observed_at).localeCompare(String(a.observed_at))).slice(0,30);
@@ -264,6 +270,7 @@ function renderPublic(){
  for(const r of display){
   html+=`<div class="public-row"><strong>${esc(r.name||r.id)}</strong>`;
   if(kind==='police'||kind==='fire')html+=`<p>${esc(r.location)} · ${esc(publicAge(r.observed_at))}${r.units?' · '+esc(r.units):''}</p>${(()=>{const queued=state.incidents.find(i=>i.public_source&&i.public_observed_at===r.observed_at&&i.public_location===r.location);return queued?`<button data-open-case="${esc(queued.id)}">Open queued call</button>`:'';})()}`;
+  if(kind==='stations')html+=`<p>${esc(r.address)}</p>`;
   if(kind==='roads')html+=`<p>${esc(r.description)}</p><p>Source update: ${esc(r.updated_ms?new Date(Number(r.updated_ms)).toLocaleString('en-CA'):'unavailable')}</p>`;
   if(kind==='hospitals'){const seconds=elapsedSeconds(r.observed_at),fresh=seconds!==null&&seconds<=7200;html+=`<p>${r.wait_min!==null?esc(r.wait_min)+' min posted wait':'Wait unavailable'}${r.patients_waiting!=null?' · '+esc(r.patients_waiting)+' waiting':''}</p><p>${esc(publicAge(r.observed_at))}${!fresh?' · stale / unverified':''}</p>`;}
   if(kind==='traffic')html+=`<p>${esc(r.speed_kph)} km/h observed · ${esc(r.free_flow_kph)} km/h free flow · ${r.closed?'road closed':'no closure reported'} · confidence ${esc(r.confidence)}</p>`;

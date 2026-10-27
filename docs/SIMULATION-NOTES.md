@@ -135,3 +135,25 @@ not Toronto clinical or dispatch standards.
   ODbL https://www.openstreetmap.org/copyright.
 - Approvals reserve only city-local exercise resources. No real crews, dispatch
   centers or hospitals receive messages.
+
+
+## Toronto station-based scenario positions
+
+Toronto's official Ambulance Service Facility ArcGIS catalogue supplies station
+names, addresses and coordinates. PublicContext retrieves this reference source
+hourly and marks retrievals stale after a day. On the first fresh catalogue,
+available scenario units without a station reference are staged at nearby actual
+stations, preferring distinct sites. This proximity mapping is a scenario choice;
+unit names, capabilities, availability and unit-to-station membership are not
+provided by the catalogue. Assigned and busy units retain their positions, and
+already anchored units are not moved by catalogue refreshes. References persist
+with the unit state. Resource-version changes invalidate old proposals before
+approval. A workspace reset can seed staging again from a fresh catalogue.
+
+The Resources view identifies each staged unit's station and address; Details →
+Ambulance stations shows the source catalogue and retrieval status. The synthetic
+fleet still passes through Zetaris, including its separate location provenance.
+A failed station request leaves existing positions intact and does not invent
+station locations or claim live vehicle tracking.
+
+Source: https://gis.toronto.ca/arcgis/rest/services/cot_geospatial25/FeatureServer/1

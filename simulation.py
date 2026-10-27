@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from incident_intake import public_key, relevant_call, valid_pickup, incident_issues
 from coordination import commitments, current_proposal, proposal_conflict
 from cities import city_config
+from station_locations import stage_available_units
 
 ROOT=Path(__file__).parent
 
@@ -55,7 +56,9 @@ CREATE INDEX IF NOT EXISTS recommendation_case ON recommendations(json_extract(p
  def feed(self,kind):
   s=self.read(); now=stamp(time.time()-1200 if s['feed_stale'] else None)
   rows=s[kind] if kind!='roads' else s['closures'] or [{'id':'CLEAR','name':'No simulated closure','lat':0.0,'lon':0.0,'radius_m':0,'active':0}]
-  return {'records':[dict(r,version=s['version'],source='simulated',observed_at=now) for r in rows]}
+  # Keep the registered REST table shape stable; rich station provenance lives
+  # in /api/state while the established source field describes mixed geography.
+  return {'records':[dict({k:v for k,v in r.items() if k not in ('station_reference','location_source')},version=s['version'],source='simulated_unit_at_official_station' if r.get('station_reference') else 'simulated',observed_at=now) for r in rows]}
  def scenario(self,name,incident_id=None):
   allowed=['hospital-unavailable','road-closure','fleet-busy','stale-feed','no-destination','zetaris-offline','ai-offline','refresh']
   if name not in allowed: raise ValueError('Unknown scenario')
@@ -84,6 +87,10 @@ CREATE INDEX IF NOT EXISTS recommendation_case ON recommendations(json_extract(p
  def sync_public(self,sources):
   with self.lock:
    s=self.read();changed=False
+   staged=stage_available_units(s,sources.get('stations',{})) if self.city=='toronto' else []
+   if staged:
+    s['version']+=1;changed=True
+    self.log('station-based-staging',{'unit_ids':staged,'basis':'Scenario units staged at official Toronto ambulance stations; not live vehicle locations'})
    for kind in (['fire'] if self.city=='seattle' else ['fire','police']):
     source=sources.get(kind,{})
     fresh=source.get('mode')=='live' and not source.get('stale',True)

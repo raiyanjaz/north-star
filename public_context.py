@@ -17,6 +17,7 @@ from simulation import stamp
 from network import tls_context
 from cities import city_config
 from incident_intake import valid_pickup
+from station_locations import TORONTO_STATIONS, station_records
 
 POLICE = 'https://services.arcgis.com/S9th0jAJ7bqgIRjw/arcgis/rest/services/C4S_Public_NoGO/FeatureServer/0'
 FIRE = 'https://www.toronto.ca/data/fire/livecad.xml'
@@ -210,7 +211,8 @@ class PublicContext:
     def refresh_one(self, kind):
         sources = {'police': (POLICE, 300), 'fire': (FIRE, 300), 'cameras': (CAMERAS, 86400),
                    'hospitals': (ER_WATCH, 900), 'roads': ('https://secure.toronto.ca/opendata/cart/road_restrictions/v3?format=csv', 300),
-                   'traffic': ('https://developer.tomtom.com/traffic-api', 120)}
+                   'traffic': ('https://developer.tomtom.com/traffic-api', 120),
+                   'stations': (TORONTO_STATIONS, 86400)}
         if self.city == 'seattle':
             sources.update(fire=(SEATTLE_FIRE, 600), roads=(SEATTLE_ROADS, 300))
             if kind not in ('fire', 'roads', 'traffic'):
@@ -223,7 +225,7 @@ class PublicContext:
         url, ttl = sources[kind]
         with self.lock:
             old = self.sources.get(kind, {})
-        if time.time() - old.get('attempt_epoch', 0) < (3600 if kind == 'cameras' else 60):
+        if time.time() - old.get('attempt_epoch', 0) < (3600 if kind in ('cameras', 'stations') else 60):
             return
         try:
             observed = None
@@ -245,6 +247,10 @@ class PublicContext:
                     rows, observed = fire_records(fetch_text(FIRE))
                 if not observed:
                     raise ValueError('Missing fire publisher timestamp')
+            elif kind == 'stations':
+                query = urlencode({'where': '1=1', 'outFields': 'ADDRESS_POINT_ID,OBJECTID,NAME,ADDRESS,ADDRESS_FULL,PLACE_NAME,LATITUDE,LONGITUDE',
+                                   'returnGeometry': 'false', 'resultRecordCount': 2000, 'f': 'json'})
+                rows = station_records(json.loads(fetch_text(TORONTO_STATIONS + '/query?' + query)))
             elif kind == 'cameras':
                 rows = camera_records(fetch_text(CAMERAS))
             elif kind == 'hospitals':
@@ -274,11 +280,14 @@ class PublicContext:
                        error='Traffic provider key required' if kind == 'traffic' and not setting('TOMTOM_API_KEY') else 'Publisher unavailable; retrying automatically')
         with self.lock:
             self.sources[kind] = new
-        if self.on_update and kind in ('fire','police'):
+        if self.on_update and kind in ('fire','police','stations'):
             self.on_update(self.snapshot())
 
     def run(self):
         while not self.stop.is_set():
             with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
-                list(pool.map(self.refresh_one, ['police', 'fire', 'roads', 'hospitals', 'cameras', 'traffic']))
+                kinds = ['police', 'fire', 'roads', 'hospitals', 'cameras', 'traffic']
+                if self.city == 'toronto':
+                    kinds.append('stations')
+                list(pool.map(self.refresh_one, kinds))
             self.stop.wait(60)
