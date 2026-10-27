@@ -1,42 +1,58 @@
-# ARC demonstration
+# ARC demonstration and recording guide
 
-Target length: 3 minutes, within verified 1–4 minute limit.
-Keep OrbStack/Zetaris and Nightshift running. Hide all Console token fields.
-Run ./run.sh and open http://127.0.0.1:4317. Use a wide browser (1440×900 ideal).
-Reset simulation. The route fixtures make the predefined scenarios repeatable
-within their stated 7-day validity. Refresh cache before recording if expired.
+Target an edited video of roughly three minutes, within the 1–4 minute submission
+limit. Use the current React workspace and real sponsor services. Recording media
+is kept locally and distributed separately from the source repository.
 
-## Recording sequence and narration
+## Prepare Toronto
 
-| Time | Screen action | Narration |
+1. Start Zetaris and Nightshift, then launch ARC with the documented launcher.
+2. Open http://127.0.0.1:4317/?city=toronto.
+3. Choose the Queen & University general-service response case with a ready plan.
+   The original case is INC-1042; the prepared duplicate is DEMO-203. Choose a
+   ready proposal rather than an untriaged public report or a case waiting for a unit.
+4. In Workspace controls, set Exercise journey speed to 30× before approving.
+5. Wait for fresh evidence before recording the approval. Keep provider settings,
+   credentials and unrelated notifications out of the capture.
+
+A city reset clears that city's exercise state. Reset only before preparing a
+fresh take, not during the recorded workflow. Existing operational data need not
+be reset to inspect the app.
+
+## Walkthrough
+
+| Approximate time | Screen action | Point to explain |
 | --- | --- | --- |
-| 0:00–0:20 | Show incident desk and Toronto map | “ARC helps a Toronto dispatcher compare a unit, an appropriate destination, and a route. This is a decision-support simulation, with clearly labelled synthetic operational data.” |
-| 0:20–0:45 | Select Queen & University. Assess response plan. Show loading stages. | “Nemotron chooses evidence tools. Zetaris combines fleet availability, hospital operations and road conditions. Explicit rules check equipment, service requirements and receiving status. OSRM supplies road-network driving estimates.” |
-| 0:45–1:10 | Show response ETA, destination transport ETA and evidence age. Expand alternatives. | “Each recommendation includes the calculated travel time and concrete reasons alternatives were excluded. The model composes an explanation using verified evidence IDs. It cannot invent a distance or a hospital capability.” |
-| 1:10–1:25 | Open Scenario controls; click Close approach road | “Now conditions change. A simulated closure crosses the current destination approach. The previous approval is immediately invalid.” |
-| 1:25–1:55 | Reassess. Show changed destination and What changed | “ARC checks the routes again and recalls prior resource state through the actual Meterless World Model. It explains the revised assignment and requires fresh dispatcher approval.” |
-| 1:55–2:15 | Approve assignment. Show reserved fleet and incident | “Approval atomically reserves the ambulance and a receiving slot. Another incident cannot take this unavailable unit.” |
-| 2:15–2:45 | Open System details. Show SQL, Nemotron receipt and World Model events | “These are product requests, not separate connection tests. Zetaris federates three REST sources. Nightshift receipts identify NVIDIA Nemotron. Meterless’s pinned World Model reference supplies persistent entities, provenance and history. Its upstream conformance suite passes eight checks.” |
-| 2:45–3:00 | Return to map | “ARC also blocks stale data, missing destinations and integration failures. The next step is validating the workflow with dispatchers and connecting authorized operational feeds.” |
+| 0:00–0:25 | Show Toronto map and inbox | Dispatcher decision support; real integrations and exercise operational data. |
+| 0:25–0:45 | Select Queen & University; show inbox groups | ARC prepares/refreshes confirmed cases automatically; public reports require explicit response requirements. |
+| 0:45–1:10 | Show unit, destination, estimates, Why this plan and Compare options | Eligibility, grounded evidence, exclusions, and separate ordinary-driving estimates. |
+| 1:10–1:40 | Workspace controls → Hospital unavailable; return to Selected case | The old plan becomes unapprovable; ARC reassesses and explains a replacement. Pause narration during inference. |
+| 1:40–2:00 | Approve a fresh revised plan; show Journey progress | Human approval atomically reserves resources. Journey movement is simulated at the explicitly selected 30× clock. |
+| 2:00–2:40 | Open System details and show each sponsor section | Actual Zetaris query, Nightshift/NVIDIA model receipt, and actual Meterless World Model entities/history. |
+| 2:40–3:15 | Return to the completed journey and Resources | Unit and receiving slot released; next steps are dispatcher validation and authorized operational feeds. |
 
-Allow real inference to complete. If a model request runs long, trim waiting from
-recording and label the edit; do not present a fabricated instant response. Never
-claim the driving estimates are real ambulance ETAs or show synthetic values as live.
+Times exclude inference waiting. If waits are shortened, label the edit instead
+of implying an instant response. Unit, destination and travel estimates can change;
+describe what is actually shown rather than promising fixed values.
 
-## Alternate reliable scenario
-Use Hospital unavailable after baseline assessment. Reassess and show that the
-selected destination changes with a concrete acceptance-status reason. This also
-shows a prior/current hospital state comparison from World Model.
+## Real and exercise boundaries
 
-## Failure demonstrations (optional)
-Reset between independent cases:
-- More test conditions → Stale feed → Assess: no feasible assignment, stale reason.
-- More test conditions → No destination → Assess: all hospitals excluded.
-- Data failure / AI failure → Assess: explicit service failure, no silent fallback.
-- Unit becomes busy → Assess: exclude the unit, choose the remaining eligible one.
-- Reject: no unit or slot is reserved. Reassess for a new proposal.
+- Real integrations: public incident/source information, TomTom traffic/routing
+  when configured, Zetaris queries, Nightshift/Nemotron inference and Meterless
+  World Model execution.
+- Exercise data/actions: fleet availability and movement, hospital receiving
+  operations, prepared response requirements, controlled disruptions and local
+  reservations. No real crews or hospitals receive dispatch instructions.
+- Public hospital wait readings do not establish acceptance or receiving slots.
+- Ordinary-driving estimates exclude emergency privileges, scene time and handover.
 
-## Recording status
-Final status is recorded in docs/HANDOFF.md. A recording must show actual browser
-interaction. If no recording artifact is produced, this exact sequence remains the
-manual recording step. Do not submit a storyboard as a completed demo video.
+See [SIMULATION-NOTES.md](SIMULATION-NOTES.md) for the detailed boundaries and
+[VALIDATION.md](VALIDATION.md) for verification evidence. Source setup, usage and
+dependencies are documented in [README.md](../README.md).
+
+## Submission status
+
+The code repository is public. A video, slides and the final submission still
+need to be attached through the team's submission workflow; publishing the source
+repository alone does not submit an entry. Local raw takes, framing tests and
+superseded generated edits are not included in the source checkout.

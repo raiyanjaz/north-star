@@ -17,3 +17,7 @@ artifacts/private/
 
 # Generated source bundles can contain obsolete copies; build from current source.
 artifacts/*.zip
+
+# Local recording takes and generated demo edits are distributed separately.
+artifacts/demo-clips/
+artifacts/arc-demo*

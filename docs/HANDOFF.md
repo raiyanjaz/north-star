@@ -84,7 +84,7 @@ docs/UX.md. No dispatcher interviews or whole-product WCAG audit are claimed.
 1. Resolve the Cursor contradiction: event rules require Cursor; current setup
    guide calls it optional. Confirm with organizers, or do meaningful Cursor work
    and record its use truthfully. This chat's work uses Codex.
-2. Review with the team. Private GitHub repository creation is authorized; public release is separate.
+2. Review with the team. The source repository is public; hackathon submission is a separate action.
 3. Record/upload the narrated 1–4 minute demo. No video file is claimed; the
    toolchain had screenshots but no ready encoder or dedicated recording tool.
 4. Confirm HackOS team / track, attach source/video/deck, and submit before
@@ -99,7 +99,7 @@ are optional partial context. Nightshift may reroute a requested model: use the
 winning receipt. Local, single-user application; no real dispatch connection or
 production authentication. Inference is serialized and has variable latency.
 
-Source is managed in a private GitHub repository. No hackathon submission is claimed.
+Source is managed in the public GitHub repository. No hackathon submission is claimed.
 The local application is left running. Prior source-package extraction passed
 checks; the latest package includes the workspace changes and their checks.
 

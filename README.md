@@ -30,7 +30,7 @@ are provided, but the full Windows installation has not been verified on Windows
 
 | Prerequisite | What to prepare |
 | --- | --- |
-| Private repository access | Ask the repo owner for access to [raiyanjaz/north-star](https://github.com/raiyanjaz/north-star). Sign in to GitHub to clone or download it. |
+| Public source repository | Clone or download [raiyanjaz/north-star](https://github.com/raiyanjaz/north-star). Sponsor software and credentials are obtained separately. |
 | Python 3.11+ | Install from [python.org](https://www.python.org/downloads/). On Windows, make Python available to the terminal; the examples use `py -3`. |
 | Node.js 24 | Install a current **24.x** release from [nodejs.org](https://nodejs.org/en/download). It executes the vendored World Model TypeScript. |
 | Container runtime | [Docker Desktop for Mac](https://docs.docker.com/desktop/setup/install/mac-install/) or [Windows](https://docs.docker.com/desktop/setup/install/windows-install/). Existing OrbStack on Mac also works. On Windows, use Linux containers with the WSL 2 backend and follow Docker's virtualization requirements. |
@@ -56,14 +56,14 @@ the build tools described below.
 
 ### 1. Get the project
 
-Clone the private repository with Git if installed:
+Clone the repository with Git if installed:
 
 ```sh
 git clone https://github.com/raiyanjaz/north-star.git
 cd north-star
 ```
 
-Alternatively, sign in to GitHub, choose **Code → Download ZIP**, extract it,
+Alternatively, choose **Code → Download ZIP** on GitHub, extract it,
 and open the extracted folder in your coding agent. Commands below run from
 that folder unless a step explicitly says otherwise. Git is optional for ZIP use.
 
@@ -259,7 +259,7 @@ those feeds. SQLite state, cached public data and World Model history persist
 under ignored `data/`; do not delete this folder to fix an unrelated setup issue.
 
 Each local installation has separate state and must keep its own services running.
-A private GitHub repo stores source; it does not host the app. Shared hosting is
+The public GitHub repo stores source; it does not host the app. Shared hosting is
 not configured. See [team setup](docs/TEAM-SETUP.md) for the local/shared distinction.
 
 ## Main workflow

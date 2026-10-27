@@ -45,4 +45,4 @@ It currently has no login system. Do not expose it directly to the public intern
 
 A shared deployment also shares the same incident queue, approvals and reset
 actions among all teammates. Separate installations have separate state.
-Private repository access and private app access are separate permissions.
+The source repository is public. Access to a hosted app and sponsor credentials is configured separately.
