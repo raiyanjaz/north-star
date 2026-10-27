@@ -34,7 +34,7 @@ export function nextAction(status) {
 }
 
 export function workflowBucket(incident) {
-  if(incident.agent_state)return ({awaiting_approval:'approval',working:'working',queued:'working',needs_input:'input',waiting:'input',watching:'watching',reserved:'reserved'})[incident.agent_state]||'input';
+  if(incident.agent_state)return ({awaiting_approval:'approval',working:'working',queued:'working',needs_input:'input',waiting:'input',watching:'watching',reserved:'reserved',completed:'completed'})[incident.agent_state]||'input';
   if (incident.status !== 'open') return 'reserved';
   if (['missing', 'stale'].includes(incident.public_feed_status)) return 'feed';
   if (incident.assessment_blockers?.length) return 'intake';
@@ -43,12 +43,23 @@ export function workflowBucket(incident) {
 
 // Public reports are incoming context until a dispatcher supplies response requirements.
 export function inboxGroup(incident) {
+  if(['completed','cancelled'].includes(incident.status))return 'completed';
   if(incident.status!=='open')return 'reserved';
   if(incident.public_source&&!incident.requirements_source&&!incident.prepared_intake)
     return ['missing','stale'].includes(incident.public_feed_status)?'history':'reports';
   if(incident.agent_state==='awaiting_approval')return 'approval';
   if(incident.assessment_blockers?.length||incident.agent_state==='needs_input'||incident.agent_state==='watching')return 'input';
   return 'working';
+}
+
+export function assignmentLabel(phase) {
+  return ({assigned:'Assigned',responding:'Responding to pickup',on_scene:'On scene',transporting:'Transporting',handover:'Hospital handover',completed:'Completed',cancelled:'Exercise ended'})[phase]||'Assigned';
+}
+
+export function nextAssignmentPhase(phase) {
+  const phases=['assigned','responding','on_scene','transporting','handover','completed'];
+  const index=phases.indexOf(phase);
+  return index>=0&&index<phases.length-1?phases[index+1]:null;
 }
 
 export function defaultInboxSelection(incidents,savedId) {

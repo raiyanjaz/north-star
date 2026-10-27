@@ -1,4 +1,4 @@
-import {elapsedSeconds,durationLabel,sortedIncidents,proposalState,belongsToSelection,nextAction,inboxGroup,caseQuestion,defaultInboxSelection} from './dispatch-model.mjs';
+import {elapsedSeconds,durationLabel,sortedIncidents,proposalState,belongsToSelection,nextAction,inboxGroup,caseQuestion,defaultInboxSelection,assignmentLabel,nextAssignmentPhase} from './dispatch-model.mjs';
 const $=s=>document.querySelector(s);
 const city=window.ARC_CITY;
 const storageKey=key=>city.id==='toronto'?key:key+'.'+city.id;
@@ -71,7 +71,9 @@ async function load(){
   const prefetched=initialStateRequest;initialStateRequest=null;
   const next=(prefetched?await prefetched:null)||await api('/api/state');if(seq!==loadSequence)return;
   if(lastEpoch&&lastEpoch!==next.epoch){records.clear();errors.clear();intakeDrafts.clear();intakeOwner='';pickingPickup=null;pickupDraftLayer.clearLayers();recRenderKey='';mapRenderKey='';}
+  const priorStatus=state?.incidents.find(i=>i.id===selected)?.status;
   lastEpoch=next.epoch;state=next;
+  if(['completed','cancelled'].includes(state.incidents.find(i=>i.id===selected)?.status)&&(initialLoad||priorStatus==='assigned'))queueStage='completed';
   if(firstInboxView||!state.incidents.some(i=>i.id===selected))selected=defaultInboxSelection(state.incidents,selected);firstInboxView=false;
   renderState();
   const target=selected,latest=await api('/api/recommendations/'+target);if(seq!==loadSequence)return;
@@ -91,18 +93,19 @@ function queueLabel(i){
  const group=inboxGroup(i);
  if(group==='reports')return ['Confirm response requirements',''];
  if(group==='history')return ['Earlier public report',''];
- if(group==='reserved')return ['View approved plan','assigned'];
+ if(group==='completed')return ['View completed assignment',''];
+ if(group==='reserved'){const assignment=state.assignments.find(a=>a.incident_id===i.id);return [assignment?.hold_reason?'Journey needs review':assignmentLabel(assignment?.phase),'assigned'];}
  if(group==='approval')return ['Review ARC’s plan',''];
  if(group==='input')return [caseQuestion(i).title,'attention'];
  if(i.agent_state==='waiting')return [i.agent_reason?.includes('receiving')?'Waiting for a receiving facility':i.agent_reason?.includes('unit')?'Waiting for a unit':i.agent_reason?.includes('paused')?'ARC is paused':'ARC is monitoring availability',''];
  return [i.agent_state==='working'?'ARC is checking this call':'ARC will prepare a plan',''];
 }
 function renderQueue(){
- const groupOrder=['approval','input','working','reserved','reports','history'];
- const groupNames={approval:'Review plans',input:'Questions for you',working:'With ARC',reserved:'Active assignments',reports:'Public reports',history:'Earlier public reports'};
+ const groupOrder=['approval','input','working','reserved','completed','reports','history'];
+ const groupNames={approval:'Review plans',input:'Questions for you',working:'With ARC',reserved:'Active assignments',completed:'Completed assignments',reports:'Public reports',history:'Earlier public reports'};
  const all=state.incidents,reportsView=['reports','history'].includes(queueStage),scoped=visibleIncidents();
  document.querySelectorAll('[data-queue-bucket]').forEach(b=>{b.querySelector('b').textContent=all.filter(i=>inboxGroup(i)===b.dataset.queueBucket).length;b.setAttribute('aria-pressed',String(queueStage===b.dataset.queueBucket));});
- const visible=scoped.filter(i=>queueStage==='all'?!['reports','history'].includes(inboxGroup(i)):inboxGroup(i)===queueStage),rows=groupOrder.flatMap(group=>visible.filter(i=>inboxGroup(i)===group));
+ const visible=scoped.filter(i=>queueStage==='all'?!['reports','history','completed'].includes(inboxGroup(i)):inboxGroup(i)===queueStage),rows=groupOrder.flatMap(group=>visible.filter(i=>inboxGroup(i)===group));
  const expanded=new Map([...document.querySelectorAll('#incidents details')].map(d=>[d.dataset.queueGroup,d.open]));
  $('#incident-count').textContent=rows.length;
  $('.queue-filter').hidden=!reportsView;
@@ -115,14 +118,14 @@ function renderQueue(){
   const group=inboxGroup(i);
   if(group!==previousGroup){if(previousGroup)html+='</div></details>';const members=rows.filter(x=>inboxGroup(x)===group),open=queueStage===group||members.some(x=>x.id===selected)||(expanded.get(group)??['approval','input','working'].includes(group));html+=`<details class="queue-group" data-queue-group="${group}" ${open?'open':''}><summary>${groupNames[group]} <span>${members.length}</span></summary><div class="queue-group-items">`;previousGroup=group;}
   const [label,kind]=queueLabel(i),since=i.public_source?i.public_observed_at:(i.received_at||state.epoch);
-  html+=`<button class="incident-card ${selected===i.id?'selected':''}" data-incident="${esc(i.id)}" aria-pressed="${selected===i.id}"><div class="incident-top"><span class="priority ${i.priority==='Priority 1'&&i.status==='open'?'urgent':''}">${esc(i.status==='open'?(i.priority||i.public_call_type||'Public report'):'Approved')}</span>${i.status==='open'?`<span data-wait-since="${esc(since)}">${durationLabel(elapsedSeconds(since))}</span>`:''}</div><strong>${esc(i.name)}</strong><span class="queue-state ${kind}">${esc(label)}</span></button>`;
+  html+=`<button class="incident-card ${selected===i.id?'selected':''}" data-incident="${esc(i.id)}" aria-pressed="${selected===i.id}"><div class="incident-top"><span class="priority ${i.priority==='Priority 1'&&i.status==='open'?'urgent':''}">${esc(i.status==='open'?(i.priority||i.public_call_type||'Public report'):['completed','cancelled'].includes(i.status)?'Ended':'Approved')}</span>${i.status==='open'?`<span data-wait-since="${esc(since)}">${durationLabel(elapsedSeconds(since))}</span>`:''}</div><strong>${esc(i.name)}</strong><span class="queue-state ${kind}">${esc(label)}</span></button>`;
  }
  if(previousGroup)html+='</div></details>';
  $('#incidents').innerHTML=html||`<div class="inbox-empty"><strong>${queueStage==='input'?'No questions for you':queueStage==='approval'?'No plans waiting for review':'Nothing in this view'}</strong><p>${reportsView?'Try another source or view current public reports.':'ARC will bring the next decision here.'}</p></div>`;
  document.querySelectorAll('[data-incident]').forEach(b=>{b.onclick=()=>selectIncident(b.dataset.incident);b.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();const index=rows.findIndex(i=>i.id===b.dataset.incident),next=rows[(index+(e.key==='ArrowDown'?1:-1)+rows.length)%rows.length];selectIncident(next.id);document.querySelector(`[data-incident="${next.id}"]`)?.focus();}};});
  if(focus)document.querySelector(`[data-incident="${focus}"]`)?.focus({preventScroll:true});
 }
-async function selectIncident(id){pickingPickup=null;pickupDraftLayer.clearLayers();$('#map').classList.remove('choosing-pickup');scrollPositions.set(selected,$('.case-panel').scrollTop);selected=id;const group=inboxGroup(state.incidents.find(i=>i.id===id));if(['reports','history'].includes(group))queueStage=group;sessionStorage.setItem(storageKey('arc.selected'),id);recRenderKey='';renderState();$('.case-panel').scrollTop=scrollPositions.get(id)||0;await load();if(selected===id)fitOperationalMap();}
+async function selectIncident(id){pickingPickup=null;pickupDraftLayer.clearLayers();$('#map').classList.remove('choosing-pickup');scrollPositions.set(selected,$('.case-panel').scrollTop);selected=id;const group=inboxGroup(state.incidents.find(i=>i.id===id));if(['reports','history','completed'].includes(group))queueStage=group;sessionStorage.setItem(storageKey('arc.selected'),id);recRenderKey='';renderState();$('.case-panel').scrollTop=scrollPositions.get(id)||0;await load();if(selected===id)fitOperationalMap();}
 function proposedUnits(){return new Set(Object.entries(state.proposals||{}).filter(([iid,p])=>p.decision==='pending'&&p.approvable&&p.version===state.version&&state.agent?.states?.[iid]?.state==='awaiting_approval').map(([,p])=>p.ambulance_id).filter(Boolean));}
 function renderResources(){
  const proposed=proposedUnits();const key=JSON.stringify([state.fleet,state.hospitals,[...proposed]]);if(key===resourceKey)return;resourceKey=key;
@@ -130,7 +133,7 @@ function renderResources(){
  $('#resource-summary').textContent=available+' '+(available===1?'unit':'units')+' free · '+(unavailable?unavailable+' receiving '+(unavailable===1?'facility':'facilities')+' unavailable':state.hospitals.length+' receiving facilities');
  $('#resource-summary').classList.toggle('attention',unavailable>0||available===0);
  $('#fleet-count').textContent=available+' free'+(proposed.size?' · '+proposed.size+' proposed':'');
- $('#fleet').innerHTML=state.fleet.map(a=>`<div class="resource-row"><div><strong>${esc(a.name)}</strong><small>${esc(a.equipment.replaceAll(',',' · '))}</small>${a.station_reference?`<p class="station-basis">${esc(a.station_reference.name)} · ${esc(a.station_reference.address)}</p>`:''}</div><span class="status ${proposed.has(a.id)&&a.status==='available'?'proposed':esc(a.status)}">${esc(a.status==='assigned'?'reserved':proposed.has(a.id)?'proposed':a.status)}</span></div>`).join('');
+ $('#fleet').innerHTML=state.fleet.map(a=>`<div class="resource-row"><div><strong>${esc(a.name)}</strong><small>${esc(a.equipment.replaceAll(',',' · '))}</small>${a.station_reference?`<p class="station-basis">Base: ${esc(a.station_reference.name)} · ${esc(a.station_reference.address)}</p>`:''}</div><span class="status ${proposed.has(a.id)&&a.status==='available'?'proposed':esc(a.status)}">${esc(a.status==='assigned'?assignmentLabel(state.assignments.find(j=>j.id===a.active_assignment_id)?.phase):proposed.has(a.id)?'proposed':a.status)}</span></div>`).join('');
  $('#hospitals').innerHTML=state.hospitals.map(h=>`<div class="resource-row"><div><strong>${esc(h.name)}</strong><small>${esc(h.capabilities.replaceAll(',',' · '))}</small></div><span class="status ${h.accepting&&h.slots>0?'':'closed'}">${h.accepting&&h.slots>0?h.slots+' '+(h.slots===1?'slot':'slots'):'Unavailable'}</span></div>`).join('');
 }
 function renderState(){
@@ -147,13 +150,14 @@ function renderState(){
  $('#request-area').hidden=i.status!=='open';
  $('#analyze').disabled=Boolean(activeJob)||i.status!=='open'||Boolean(i.assessment_blockers?.length);$('#analyze').classList.add('secondary-action');
  $('#analyze').textContent=activeJob?'Another assessment is running':i.agent_state==='needs_input'?'Retry assessment':'Reassess now';
- $('#plan-heading').textContent=i.status!=='open'?'Approved plan':status==='incomplete'?'Confirm the response':status==='ready'?'Your decision':i.agent_state==='working'?'ARC is assessing':'Response plan';
+ $('#plan-heading').textContent=['completed','cancelled'].includes(i.status)?'Completed assignment':i.status!=='open'?'Approved plan':status==='incomplete'?'Confirm the response':status==='ready'?'Your decision':i.agent_state==='working'?'ARC is assessing':'Response plan';
  $('.decision-panel').dataset.state=status;
  $('.decision-heading').hidden=!rec&&!i.assessment_blockers?.length;
- $('#decision-status').textContent=({ready:'Ready for review',changed:'Review required',expired:'Evidence expired',approved:'Reserved',rejected:'Rejected',blocked:'Blocked',incomplete:'Details required'})[status]||'Awaiting assessment';
+ $('#decision-status').textContent=status==='approved'?assignmentLabel(state.assignments.find(a=>a.incident_id===selected)?.phase):({ready:'Ready for review',changed:'Review required',expired:'Evidence expired',approved:'Reserved',rejected:'Rejected',blocked:'Blocked',incomplete:'Details required'})[status]||'Awaiting assessment';
  const error=errors.get(selected),alert=error?'Assessment unavailable. '+error:'';
  $('#case-alert').hidden=!alert;if($('#case-alert').textContent!==alert)$('#case-alert').textContent=alert;$('#case-alert').classList.toggle('error',Boolean(error));
  $('#progress').innerHTML=activeHere?'<span class="spinner"></span>'+esc(friendlyStage(activeJob.stage)):'';
+ if(document.activeElement!==$('#journey-speed'))$('#journey-speed').value=String(state.journey_speed||10);
  $('#scenario-status').textContent=state.scenario==='baseline'?'Baseline scenario':state.scenario.replaceAll('-',' ');
  renderRec();renderMap();
 }
@@ -164,23 +168,43 @@ function describeChange(r){
  if(state.closures.length)return 'A road closure may affect this plan’s routes.';
  return 'The operational picture changed after this plan was assessed.';
 }
+function assignmentCard(assignment){
+ const ended=['completed','cancelled'].includes(assignment.phase),next=nextAssignmentPhase(assignment.phase);
+ const phases=['assigned','responding','on_scene','transporting','handover','completed'];
+ const index=phases.indexOf(assignment.phase);
+ let html='<section class="journey-progress" aria-label="Assignment progress"><h3>Journey progress</h3><ol class="journey-stages">'+phases.map((phase,n)=>`<li class="${n<index?'done':n===index?'current':''}" ${n===index?'aria-current="step"':''}>${esc(assignmentLabel(phase))}</li>`).join('')+'</ol>';
+ if(assignment.hold_reason)html+=`<p class="journey-hold" role="status">${esc(assignment.hold_reason)}</p>`;
+ if(ended)html+=`<p>Ended at ${esc(new Date(assignment.completed_at).toLocaleTimeString('en-CA',{timeZone:city.timezone,hour:'2-digit',minute:'2-digit'}))} · resources released.</p>`;
+ else if(assignment.automatic&&!assignment.hold_reason)html+=`<p>Next stage in <span data-phase-deadline="${assignment.phase_ends_epoch}">${durationLabel(Math.max(0,Math.ceil(assignment.phase_ends_epoch-Date.now()/1000)))}</span> · ${assignment.speed}× exercise clock</p>`;
+ else if(!assignment.automatic)html+='<p>Earlier assignment · advance stages manually in Journey controls.</p>';
+ html+='<p class="plan-note">Progress follows assessed routes and exercise timing, not live crew updates.</p></section>';
+ if(!ended)html+=`<details class="review-details" data-detail="journey-controls"><summary>Journey controls</summary><p class="plan-note">Advance one exercise stage, or end this exercise assignment and release its resources at the current position.</p><div class="journey-actions"><button data-assignment-action="advance" ${assignment.hold_reason?'disabled':''}>${esc(next?'Advance to '+assignmentLabel(next).toLowerCase():'Advance stage')}</button><button data-assignment-action="cancel">End exercise assignment</button></div></details>`;
+ html+='<details class="review-details" data-detail="journey-history"><summary>Journey history</summary><ol class="journey-history">'+assignment.history.map(event=>`<li>${esc(assignmentLabel(event.phase))} · ${esc(new Date(event.at).toLocaleTimeString('en-CA',{timeZone:city.timezone,hour:'2-digit',minute:'2-digit',second:'2-digit'}))}</li>`).join('')+'</ol></details>';
+ return html;
+}
+async function progressAssignment(assignment,action){
+ document.querySelectorAll('[data-assignment-action]').forEach(button=>button.disabled=true);
+ try{await api('/api/assignments/progress',{id:assignment.id,revision:assignment.revision,action});await load();toast(action==='cancel'?'Exercise assignment ended; resources released.':'Assignment progress advanced.');}
+ catch(error){await load();toast(error.message);}
+}
 function renderRec(){
- const status=caseStatus(rec),key=JSON.stringify([selected,rec?.id,rec?.decision,state.version,state.incidents.find(i=>i.id===selected)?.incident_revision,status,Boolean(activeJob)]);
+ const status=caseStatus(rec),key=JSON.stringify([selected,rec?.id,rec?.decision,state.version,state.incidents.find(i=>i.id===selected)?.incident_revision,status,Boolean(activeJob),state.assignments.filter(a=>a.incident_id===selected).map(a=>[a.phase,a.revision,a.hold_reason])]);
  if(key===recRenderKey)return;recRenderKey=key;
  if(renderedIncident)detailStates.set(renderedIncident,new Set([...document.querySelectorAll('#recommendation details[open]')].map(d=>d.dataset.detail)));
  const opened=detailStates.get(selected)||new Set();renderedIncident=selected;
  if(!rec&&state.incidents.find(i=>i.id===selected)?.assessment_blockers?.length){$('#recommendation').innerHTML='';return;}
- if(!rec){$('#recommendation').innerHTML=inboxGroup(state.incidents.find(i=>i.id===selected))==='working'?'<p class="case-followup">You can review another case while ARC checks this one. The next plan will appear here.</p>':'';return;}
+ if(!rec){const assignment=state.assignments.find(a=>a.incident_id===selected);$('#recommendation').innerHTML=assignment?assignmentCard(assignment):inboxGroup(state.incidents.find(i=>i.id===selected))==='working'?'<p class="case-followup">You can review another case while ARC checks this one. The next plan will appear here.</p>':'';document.querySelectorAll('[data-assignment-action]').forEach(b=>b.onclick=()=>progressAssignment(assignment,b.dataset.assignmentAction));return;}
  const sameCaseBusy=Boolean(activeJob&&!activeJob.automatic&&belongsToSelection(activeJob,selected,state.epoch));
+ const assignment=state.assignments.find(a=>a.incident_id===selected);
  const p=rec.selected,i=state.incidents.find(i=>i.id===selected),byId=Object.fromEntries(rec.evidence.map(e=>[e.id,e]));
  const explanation=rec.explanation.evidence_ids.map(id=>byId[id]);
- let html='';
+ let html=rec.decision==='approved'&&assignment?assignmentCard(assignment):'';
  if(p){
   const unit=rec.source_rows.fleet.find(a=>a.id===p.ambulance_id),hospital=rec.source_rows.hospitals.find(h=>h.id===p.hospital_id);
   if(rec.decision==='pending'&&status==='ready')html+=`<p class="plan-explanation">${esc(operationalCopy(p.reasons?.[0]||'These resources meet the confirmed requirements.').replace('Lowest total driving time among eligible pairs; ties prefer more receiving slots, then stable ID.','This is the shortest combined driving time among eligible plans.'))}</p>`;
-  html+=`<section class="plan-section"><div class="plan-label"><span>Response unit</span><span>${rec.decision==='approved'?'Reserved':status==='changed'||status==='expired'?'Previous plan':'Proposed'}</span></div><div class="plan-main"><div><strong>${esc(unit.name)}</strong><p>Meets the ${esc(i.equipment)} equipment requirement</p></div><div class="eta"><strong>~${p.pickup_min}</strong><small>min to pickup</small></div></div></section>`;
-  html+=`<section class="plan-section transport-section"><div class="plan-label"><span>Destination preview</span></div><div class="plan-main"><div><strong>${esc(hospital.name)}</strong><p>Meets the ${esc(i.service)} service requirement</p></div><div class="eta"><strong>~${p.transport_min}</strong><small>min from pickup</small></div></div></section>`;
-  html+='<p class="plan-note">Driving estimates exclude time on scene and hospital handover.</p>';
+  html+=`<section class="plan-section"><div class="plan-label"><span>Response unit</span><span>${rec.decision==='approved'?assignmentLabel(assignment?.phase):status==='changed'||status==='expired'?'Previous plan':'Proposed'}</span></div><div class="plan-main"><div><strong>${esc(unit.name)}</strong><p>Meets the ${esc(i.equipment)} equipment requirement</p></div>${rec.decision==='approved'?'':`<div class="eta"><strong>~${p.pickup_min}</strong><small>min to pickup</small></div>`}</div></section>`;
+  html+=`<section class="plan-section transport-section"><div class="plan-label"><span>${rec.decision==='approved'?'Receiving facility':'Destination preview'}</span></div><div class="plan-main"><div><strong>${esc(hospital.name)}</strong><p>Meets the ${esc(i.service)} service requirement</p></div>${rec.decision==='approved'?'':`<div class="eta"><strong>~${p.transport_min}</strong><small>min from pickup</small></div>`}</div></section>`;
+  if(rec.decision!=='approved')html+='<p class="plan-note">Driving estimates exclude time on scene and hospital handover.</p>';
  }else html+='<div class="error-box"><strong>No suitable plan yet</strong><br>ARC could not match the current requirements, available resources and routes. Review the explanation below.</div>';
  if(rec.decision==='rejected')html+='<p class="pending-box">Plan rejected. Review the requirements or request another assessment when ready.</p>';
  if(rec.changes.length&&rec.decision==='pending'&&status==='ready')html+='<div class="change"><strong>What changed</strong><br>'+esc(rec.changes.map(c=>humanChange(c.text)).join(' '))+'</div>';
@@ -192,7 +216,7 @@ function renderRec(){
  for(const a of rec.alternatives.filter(a=>!a.eligible))html+=`<div class="alternative-row"><strong>${esc(a.name)} · excluded</strong><p>${esc(operationalCopy(a.reasons.join(' ')))}</p></div>`;
  html+='</div></details>';
  html+=`<details class="review-details" data-detail="sources"><summary>Evidence & activity</summary><div class="source-strip">Routes: ${p?esc(p.transport_route.mode)+' '+esc(p.transport_route.source):'unavailable or ineligible'} · ${p?.transport_route.traffic_aware?'Traffic at assessment time':'Static estimates; no live traffic'}<br>Assessed ${esc(new Date(rec.created_at).toLocaleString('en-CA'))}</div>`+rec.changes.map(c=>`<div class="change">${esc(operationalCopy(c.text))}</div>`).join('')+`<ol class="trace">${rec.trace.map(t=>`<li><strong>${esc(t.tool)}</strong><br>${esc(operationalCopy(t.detail))}</li>`).join('')}</ol><div class="source-strip">${Object.entries(rec.source_rows).map(([name,rows])=>esc(name)+' · observed '+esc(rows[0]?.observed_at||'missing timestamp')).join('<br>')}</div></details>`;
- $('#recommendation').innerHTML=html;document.querySelectorAll('#recommendation details').forEach(d=>d.open=opened.has(d.dataset.detail));
+ $('#recommendation').innerHTML=html;document.querySelectorAll('[data-assignment-action]').forEach(b=>b.onclick=()=>progressAssignment(assignment,b.dataset.assignmentAction));document.querySelectorAll('#recommendation details').forEach(d=>d.open=opened.has(d.dataset.detail));
  if($('#approve'))$('#approve').onclick=()=>decide('approve');if($('#reject'))$('#reject').onclick=()=>decide('reject');
  document.querySelectorAll('[data-alternative]').forEach(b=>b.onclick=()=>startAssessment(b.dataset.alternative));
 }
@@ -220,16 +244,16 @@ async function decide(action){const current=rec;$('#approve')?.setAttribute('dis
 function marker(lat,lon,type,label,muted=false){return L.marker([lat,lon],{title:label,alt:label,icon:L.divIcon({className:'map-marker',html:`<div class="marker ${type} ${muted?'muted':''}">${type==='hospital'?'+':type==='ambulance'?'↗':'!'}</div>`,iconSize:[28,28],iconAnchor:[14,14]})}).bindTooltip(esc(label)).addTo(layers);}
 function renderMap(){
  const currentIncident=state.incidents.find(i=>i.id===selected);
- const key=JSON.stringify([selected,rec?.id,state.version,currentIncident?.incident_revision,currentIncident?.lat,currentIncident?.lon,caseStatus(rec)]);if(key===mapRenderKey)return;const selectionChanged=!mapRenderKey||JSON.parse(mapRenderKey)[0]!==selected;mapRenderKey=key;layers.clearLayers();
- const p=rec?.selected,routeNeedsReview=rec?.decision==='pending'&&caseStatus(rec)!=='ready';
+ const key=JSON.stringify([selected,rec?.id,state.version,state.fleet.map(a=>[a.id,a.lat,a.lon]),state.assignments.map(a=>[a.id,a.phase,a.hold_reason]),currentIncident?.incident_revision,currentIncident?.lat,currentIncident?.lon,caseStatus(rec)]);if(key===mapRenderKey)return;const selectionChanged=!mapRenderKey||JSON.parse(mapRenderKey)[0]!==selected;mapRenderKey=key;layers.clearLayers();
+ const p=rec?.selected,journey=state.assignments.find(a=>a.incident_id===selected),routeNeedsReview=Boolean(journey?.hold_reason)||rec?.decision==='pending'&&caseStatus(rec)!=='ready';
  state.hospitals.filter(h=>$('#show-resource-markers').checked||h.id===p?.hospital_id).forEach(h=>marker(h.lat,h.lon,'hospital',h.name,!h.accepting||Boolean(p&&h.id!==p.hospital_id)));
- state.fleet.filter(a=>$('#show-resource-markers').checked||a.id===p?.ambulance_id).forEach(a=>marker(a.lat,a.lon,'ambulance',a.name+' · '+(a.status==='assigned'?'reserved':proposedUnits().has(a.id)?'proposed':a.status),Boolean(p&&a.id!==p.ambulance_id)));
+ state.fleet.filter(a=>$('#show-resource-markers').checked||a.id===p?.ambulance_id).forEach(a=>marker(a.lat,a.lon,'ambulance',a.name+' · '+(a.status==='assigned'?assignmentLabel(state.assignments.find(j=>j.id===a.active_assignment_id)?.phase):proposedUnits().has(a.id)?'proposed':a.status),Boolean(p&&a.id!==p.ambulance_id)));
  state.incidents.filter(i=>(i.status==='open'||i.id===selected)&&hasPickup(i)&&(i.service||i.id===selected)).forEach(i=>{const color=i.agent_state==='awaiting_approval'?'#28785c':i.agent_state==='working'?'#315fb6':'#9c7131';L.circleMarker([i.lat,i.lon],{radius:i.id===selected?10:7,color,weight:i.id===selected?3:2,fillColor:color,fillOpacity:i.id===selected?.85:.5}).bindTooltip(esc(i.name),{permanent:i.id===selected,direction:'top',offset:[0,-10],className:'selected-map-label'}).on('click',()=>selectIncident(i.id)).addTo(layers);});
  state.closures.forEach(c=>L.circle([c.lat,c.lon],{radius:c.radius_m,color:'#ac694b',fillOpacity:.15,weight:2}).bindTooltip(esc(operationalCopy(c.name))).addTo(layers));
  if(p){for(const [route,color] of [[p.pickup_route,'#255bd6'],[p.transport_route,'#16786b']]){const points=route.coordinates.map(([x,y])=>[y,x]);L.polyline(points,{color:'#fff',weight:8,opacity:.95,interactive:false}).addTo(layers);L.polyline(points,{color:routeNeedsReview?'#9a783a':color,weight:4.5,dashArray:routeNeedsReview?'6 6':undefined,lineCap:'round'}).addTo(layers);}}
  $('.map-legend').innerHTML=routeNeedsReview?'<span><i class="legend-dot review"></i>Previous plan · review required</span>':'<span><i class="legend-dot ambulance"></i>Unit to incident</span><span><i class="legend-dot hospital"></i>Incident to hospital</span>';
  $('.map-legend').hidden=!p;
- const trafficNote=!p?'No plan assessed for this report yet':p.transport_route.traffic_aware?'Traffic at assessment time · ordinary driving':'Static driving estimates · live traffic not included';
+ const trafficNote=rec?.decision==='approved'?'Approved route · exercise progress, not live vehicle tracking':!p?'No plan assessed for this report yet':p.transport_route.traffic_aware?'Traffic at assessment time · ordinary driving':'Static driving estimates · live traffic not included';
  $('.map-disclosure').textContent=(routeNeedsReview?'Previous assessed routes · review required · ':'')+trafficNote;
  if(p?.transport_route.traffic_aware)map.attributionControl.addAttribution('© TomTom');
  if(!overviewInitialized){overviewInitialized=true;hasPickup(currentIncident)?fitOperationalMap():fitOverview();}
@@ -247,11 +271,12 @@ $('#open-evidence').onclick=async()=>{$('#evidence-modal').showModal();$('#evide
 $('#close-evidence').onclick=()=>$('#evidence-modal').close();$('#evidence-modal').onclick=e=>{if(e.target===$('#evidence-modal'))$('#evidence-modal').close();};
 setInterval(()=>{
  $('#clock').textContent=new Date().toLocaleTimeString('en-CA',{timeZone:city.timezone,hour:'2-digit',minute:'2-digit'});
+ document.querySelectorAll('[data-phase-deadline]').forEach(el=>el.textContent=durationLabel(Math.max(0,Math.ceil(Number(el.dataset.phaseDeadline)-Date.now()/1000))));
  document.querySelectorAll('[data-wait-since]').forEach(el=>el.textContent=durationLabel(elapsedSeconds(el.dataset.waitSince)));
  document.querySelectorAll('[data-evidence-epoch]').forEach(el=>el.textContent=durationLabel(Math.max(0,Math.floor(Date.now()/1000-Number(el.dataset.evidenceEpoch))))+' ago');
  if(state){const status=caseStatus(rec);if(status!==$('#decision-status').dataset.lastStatus){$('#decision-status').dataset.lastStatus=status;renderState();}}
 },1000);
-setInterval(load,5000);load();
+setInterval(load,2000);load();
 
 function publicAge(value){const age=elapsedSeconds(value);return age===null?'source time unavailable':durationLabel(age)+' ago';}
 function renderPublic(){
@@ -333,9 +358,9 @@ $('#reload-intake').onclick=()=>{intakeDrafts.delete(selected);intakeOwner='';re
 function renderWorkflow(i,status){
  const group=inboxGroup(i),question=caseQuestion(i);
  let title='',description='',action='';
- if(group==='reserved'){
-  title='Assignment approved';const assignment=state.assignments.find(a=>a.incident_id===i.id);
-  description='The unit and receiving slot are reserved.'+(assignment?' Approved at '+new Date(assignment.at).toLocaleTimeString('en-CA',{timeZone:city.timezone,hour:'2-digit',minute:'2-digit'}):'');
+ if(group==='reserved'||group==='completed'){
+  const assignment=state.assignments.find(a=>a.incident_id===i.id);title=assignment?.hold_reason?'This journey needs review':assignmentLabel(assignment?.phase);
+  description=assignment?.hold_reason||(['completed','cancelled'].includes(assignment?.phase)?'The unit and receiving slot were released. The unit stays at its last journey location.':assignment?.automatic?'ARC is progressing this exercise along the approved route.':'This earlier assignment uses manual progress controls.');
  }else if(group==='reports'||group==='history'){
   title=group==='history'?'Earlier public report':'Is this a response case?';description='This is a public report, not a confirmed request to ARC. '+question.body;action='intake';
  }else if(group==='input'){
@@ -353,7 +378,7 @@ function renderWorkflow(i,status){
  const label=group==='history'?'Review report details':group==='reports'?'Confirm this response case':question.action;
  const html=`<span class="arc-speaker">ARC</span><strong>${esc(title)}</strong><p>${esc(description)}</p>${action?`<button id="case-next-action" data-target="${action}">${esc(label)}</button>`:''}`;
  if($('#case-guidance').innerHTML!==html){$('#case-guidance').innerHTML=html;const button=$('#case-next-action');if(button)button.onclick=()=>{const panel=button.dataset.target==='intake'?$('#incident-intake'):$('#manual-assessment');panel.open=true;panel.scrollIntoView({block:'nearest'});panel.querySelector('select,textarea,button')?.focus({preventScroll:true});};}
- $('#case-guidance').classList.toggle('is-complete',group==='reserved');
+ $('#case-guidance').classList.toggle('is-complete',['reserved','completed'].includes(group));
 }
 function renderAgent(){
  const agent=state.agent||{},running=state.assessments?.[0];
@@ -367,6 +392,7 @@ function renderAgent(){
 function fitOverview(){if(!state)return;const points=[...state.fleet,...state.hospitals,...state.incidents.filter(i=>i.status==='open'&&i.service&&hasPickup(i))].filter(hasPickup).map(i=>[i.lat,i.lon]);if(points.length){map.invalidateSize();map.fitBounds(points,{padding:[35,35],maxZoom:14,animate:false});}}
 $('#fit-overview').onclick=fitOverview;
 $('#agent-toggle').onclick=async()=>{try{await api('/api/agent/control',{enabled:!state.agent.enabled});await load();}catch(e){toast(e.message);}};
+$('#journey-speed').onchange=async()=>{try{await api('/api/journeys/speed',{speed:Number($('#journey-speed').value)});await load();toast('Exercise journey speed changed.');}catch(e){toast(e.message);}};
 $('#load-demo-intake').onclick=async()=>{try{const r=await api('/api/demo/intake',{});toast(r.loaded?'Prepared intake loaded. ARC will assess automatically.':'Prepared intake is already loaded.');await load();}catch(e){toast(e.message);}};
 new ResizeObserver(()=>map.invalidateSize()).observe($('#map'));
 

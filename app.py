@@ -41,7 +41,8 @@ class ARC:
     proposals[iid]={k:r.get(k) for k in ['id','version','incident_revision','decision','approvable','evidence_epoch','created_epoch','status']}
     proposals[iid].update(ambulance_id=(r.get('selected') or {}).get('ambulance_id'),hospital_id=(r.get('selected') or {}).get('hospital_id'))
   assessments=[{k:j.get(k) for k in ['id','incident_id','status','stage','error','simulation_epoch','automatic']} for j in list(self.jobs.values()) if j.get('simulation_epoch')==s['epoch'] and j['status']=='running']
-  return dict(s,city=self.config,agent=agent_state,proposals=proposals,assessments=assessments,public_context=self.public_context.snapshot(),public_roads=self.public_roads,integrations=self.last_integration,engine_error=self.engine_error,simulation=True)
+  s['assignments']=[{k:v for k,v in assignment.items() if k not in ('pickup_route','transport_route','durations')} for assignment in s['assignments']]
+  return dict(s,server_epoch=time.time(),city=self.config,agent=agent_state,proposals=proposals,assessments=assessments,public_context=self.public_context.snapshot(),public_roads=self.public_roads,integrations=self.last_integration,engine_error=self.engine_error,simulation=True)
  def start_analysis(self,incident_id,request,preferred_id=None,automatic=False,trigger=None,fingerprint=None):
   if fingerprint is None:
    s=self.sim.read();incident=next((i for i in s['incidents'] if i['id']==incident_id),None)
@@ -202,6 +203,9 @@ class Handler(BaseHTTPRequestHandler):
    body=json.loads(self.rfile.read(length) or '{}');path=urlsplit(self.path).path
    if path=='/api/agent/control':
     self.arc.coordinator.set_enabled(body.get('enabled'));return self.reply(200,self.arc.coordinator.snapshot())
+   if path=='/api/assignments/progress':
+    return self.reply(200,self.arc.sim.progress_assignment(body.get('id'),body.get('revision'),body.get('action')))
+   if path=='/api/journeys/speed':return self.reply(200,self.arc.sim.set_journey_speed(body.get('speed')))
    if path=='/api/agent/retry':return self.reply(202,self.arc.coordinator.retry(str(body.get('incident_id','')),body.get('request')))
    if path=='/api/demo/intake':return self.reply(200,{'loaded':self.arc.sim.load_demo_intake()})
    if path=='/api/analyze':return self.reply(202,self.arc.start_analysis(str(body.get('incident_id','')),str(body.get('request','Assess this incident and explain the best feasible assignment.'))))

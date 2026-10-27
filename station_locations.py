@@ -38,7 +38,7 @@ def stage_available_units(state, source):
     occupied = {unit['station_reference']['id'] for unit in state['fleet'] if unit.get('station_reference')}
     changed = []
     for unit in state['fleet']:
-        if unit['status'] != 'available' or unit.get('station_reference', {}).get('id') in eligible_ids:
+        if unit['status'] != 'available' or unit.get('last_assignment_id') or unit.get('location_source')=='simulated_journey' or unit.get('station_reference', {}).get('id') in eligible_ids:
             continue
         choices = [station for station in stations if station['id'] not in occupied] or stations
         # Proximity to the prior scenario position chooses a plausible base; it is

@@ -217,3 +217,42 @@ calls do not calculate resource commitments, and only cases with recommendations
 can contribute commitments. Latest recommendation reads use an indexed epoch/case
 lookup rather than decoding every historical route payload. Eligibility, proposal
 freshness, city isolation and atomic approval checks remain authoritative.
+
+
+## Assignment lifecycle and resource release
+
+Approval now creates a persisted assignment with its own ID, revision, route
+geometry, stage deadlines and history. The progression is assigned → responding
+→ on scene → transporting → hospital handover → completed. New assignments with
+usable assessed routes progress automatically. Driving durations come from the
+approved assessment; on-scene time (180 seconds), handover (300 seconds) and
+initial departure (15 seconds) are explicit exercise assumptions. A workspace
+clock supports 1×, 10× (default), and 30×. Changing speed preserves current progress.
+
+The supervisor advances journeys even when automatic assessment is paused or an
+inference is in flight. Positions interpolate by cumulative distance along the
+captured directed road geometry, rather than cutting across the route. Movement
+is estimated exercise progress; it does not claim GPS telemetry, delivered
+instructions or crew acknowledgements. Resource-version changes occur on approval
+and release, not every position update. This avoids invalidating unrelated
+proposals during a busy unit's movement.
+
+Completion runs in a BEGIN IMMEDIATE transaction, verifies unit/assignment
+ownership, releases exactly one receiving slot, marks the incident completed,
+and makes the unit available at its final route endpoint. It retains the base
+station reference but never automatically relocates a released unit to that
+station. The next assessment uses the unit's current coordinates through Zetaris.
+The registered REST fleet schema is unchanged; journey details stay in app state.
+
+Stage deadlines survive restart and catch up using wall-clock time. Previously
+saved assignments without a clock migrate to manual progress, without moving or
+freeing their resources. Revision-checked journey controls advance one stage or
+end an exercise assignment. Ending closes the exercise case as cancelled, releases
+resources at the current position, and does not reopen or re-dispatch it.
+
+An unavailable destination or a scenario closure crossing a planned route holds
+progress for review. Closure checking is conservative and includes the full
+relevant approved leg, including portions already traversed. Restoring conditions
+resumes the clock without advancing through time spent on hold. Resource
+ownership mismatches never release somebody else's unit or slot. These are local
+simulation controls; no external dispatch actions are performed.

@@ -6,6 +6,7 @@ from incident_intake import public_key, relevant_call, valid_pickup, incident_is
 from coordination import commitments, current_proposal, proposal_conflict
 from cities import city_config
 from station_locations import stage_available_units
+from assignment_lifecycle import make_assignment, migrate_assignments, advance_assignments, next_phase, release, SPEEDS
 
 ROOT=Path(__file__).parent
 
@@ -41,6 +42,9 @@ CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY,at TEXT,event TEXT,payl
 CREATE INDEX IF NOT EXISTS recommendation_case ON recommendations(json_extract(payload,'$.simulation_epoch'),json_extract(payload,'$.incident_id'));
 ''')
   if not self.db.execute('SELECT 1 FROM state').fetchone(): self.reset()
+  with self.lock:
+   state=self.read()
+   if migrate_assignments(state,time.time()):self.save(state)
  def read(self):
   with self.lock: return json.loads(self.db.execute('SELECT payload FROM state WHERE id=1').fetchone()[0])
  def save(self,s): self.db.execute('INSERT OR REPLACE INTO state VALUES(1,?)',(json.dumps(s),))
@@ -51,14 +55,14 @@ CREATE INDEX IF NOT EXISTS recommendation_case ON recommendations(json_extract(p
    profile=json.loads((ROOT/'fixtures/seattle.json').read_text()) if self.city=='seattle' else {'fleet':FLEET,'hospitals':HOSPITALS,'incidents':INCIDENTS}
    initial=[dict(i,prepared_intake=True,incident_revision=0,requirements_source='prepared_demo',pickup_source='prepared_demo',notes='Prepared Seattle exercise intake; not facts supplied by the public feed.') for i in profile['incidents']] if self.city=='seattle' else profile['incidents']
    s={'city':self.city,'version':old['version']+1,'epoch':stamp(),'fleet':profile['fleet'],'hospitals':profile['hospitals'],'incidents':[dict(i,city=self.city,status='open',received_at=stamp(time.time()-120+n*45)) for n,i in enumerate(initial)],
-      'scenario':'baseline','feed_stale':False,'zetaris_offline':False,'ai_offline':False,'closures':[], 'assignments':[]}
+      'scenario':'baseline','feed_stale':False,'zetaris_offline':False,'ai_offline':False,'closures':[], 'assignments':[], 'journey_speed':old.get('journey_speed',10)}
    self.save(s); self.log('reset',{'version':s['version']}); return self.read()
  def feed(self,kind):
   s=self.read(); now=stamp(time.time()-1200 if s['feed_stale'] else None)
   rows=s[kind] if kind!='roads' else s['closures'] or [{'id':'CLEAR','name':'No simulated closure','lat':0.0,'lon':0.0,'radius_m':0,'active':0}]
   # Keep the registered REST table shape stable; rich station provenance lives
   # in /api/state while the established source field describes mixed geography.
-  return {'records':[dict({k:v for k,v in r.items() if k not in ('station_reference','location_source')},version=s['version'],source='simulated_unit_at_official_station' if r.get('station_reference') else 'simulated',observed_at=now) for r in rows]}
+  return {'records':[dict({k:v for k,v in r.items() if kind!='fleet' or k in ('id','name','lat','lon','equipment','status')},version=s['version'],source='simulated_journey' if r.get('location_source')=='simulated_journey' else 'simulated_unit_at_official_station' if r.get('station_reference') else 'simulated',observed_at=now) for r in rows]}
  def scenario(self,name,incident_id=None):
   allowed=['hospital-unavailable','road-closure','fleet-busy','stale-feed','no-destination','zetaris-offline','ai-offline','refresh']
   if name not in allowed: raise ValueError('Unknown scenario')
@@ -237,6 +241,54 @@ CREATE INDEX IF NOT EXISTS recommendation_case ON recommendations(json_extract(p
   with self.lock:
    row=self.db.execute('SELECT payload FROM recommendations WHERE id=?',(id,)).fetchone()
    return json.loads(row[0]) if row else None
+ def advance_assignments(self,now=None):
+  from integrations import blocked
+  now=time.time() if now is None else now
+  with self.lock:
+   self.db.execute('BEGIN IMMEDIATE')
+   try:
+    s=self.read();changed,events=advance_assignments(s,now,blocked)
+    if changed:self.save(s)
+    for event in events:self.log('assignment-progress',event)
+    self.db.execute('COMMIT');return events
+   except Exception:self.db.execute('ROLLBACK');raise
+ def progress_assignment(self,id,revision,action,now=None):
+  if action not in ('advance','cancel'):raise ValueError('Unknown assignment action')
+  if isinstance(revision,bool) or not isinstance(revision,int):raise ValueError('Assignment revision is required')
+  now=time.time() if now is None else now
+  with self.lock:
+   self.advance_assignments(now)
+   self.db.execute('BEGIN IMMEDIATE')
+   try:
+    s=self.read();assignment=next((a for a in s['assignments'] if a['id']==id),None)
+    if not assignment:raise ValueError('Assignment not found in this workspace')
+    if assignment['phase'] in ('completed','cancelled'):raise ValueError('This assignment has already ended')
+    if assignment['revision']!=revision:raise ValueError('Assignment progress changed. Review the current stage.')
+    if action=='cancel':
+     release(s,assignment,now,cancelled=True);assignment['revision']+=1
+     assignment['history'].append({'phase':'cancelled','at':stamp(now)})
+    else:
+     if assignment.get('hold_reason'):raise ValueError(assignment['hold_reason'])
+     next_phase(s,assignment,now)
+    self.save(s);self.log('assignment-progress',{'assignment_id':id,'incident_id':assignment['incident_id'],'phase':assignment['phase'],'at':stamp(now)})
+    self.db.execute('COMMIT');return assignment
+   except Exception:self.db.execute('ROLLBACK');raise
+ def set_journey_speed(self,speed,now=None):
+  if isinstance(speed,bool) or speed not in SPEEDS:raise ValueError('Choose a journey speed of 1, 10 or 30')
+  now=time.time() if now is None else now
+  with self.lock:
+   self.advance_assignments(now);s=self.read()
+   for assignment in s['assignments']:
+    if not assignment['automatic'] or assignment['phase'] in ('completed','cancelled'):continue
+    anchor=assignment.get('hold_since_epoch',now)
+    span=assignment['phase_ends_epoch']-assignment['phase_started_epoch']
+    fraction=max(0,min(1,(anchor-assignment['phase_started_epoch'])/span)) if span else 1
+    duration=assignment['durations'][assignment['phase']]/speed
+    assignment.update(speed=speed,phase_started_epoch=now-fraction*duration,phase_ends_epoch=now+(1-fraction)*duration)
+    if assignment.get('hold_reason'):assignment['hold_since_epoch']=now
+    assignment['revision']+=1
+   s['journey_speed']=speed;self.save(s);self.log('journey-speed',{'speed':speed})
+   return {'journey_speed':speed}
  def decide(self,id,action):
   if action not in ['approve','reject']: raise ValueError('Unknown decision')
   with self.lock:
@@ -257,7 +309,7 @@ CREATE INDEX IF NOT EXISTS recommendation_case ON recommendations(json_extract(p
      incident=next(x for x in s['incidents'] if x['id']==r['incident_id'])
      if a['status']!='available' or not h['accepting'] or h['slots']<1 or incident['status']!='open':raise ValueError('Resource or incident is no longer available')
      a['status']='assigned';h['slots']-=1;incident['status']='assigned'
-     s['assignments'].append({'incident_id':r['incident_id'],'ambulance_id':a['id'],'hospital_id':h['id'],'at':stamp()})
+     s['assignments'].append(make_assignment(r,s,time.time()))
      s['version']+=1;self.save(s)
     r['decision']='approved' if action=='approve' else 'rejected'
     self.db.execute('UPDATE recommendations SET payload=? WHERE id=?',(json.dumps(r),id));self.log(r['decision'],{'recommendation':id});self.db.execute('COMMIT');return r

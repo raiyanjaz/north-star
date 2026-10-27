@@ -157,3 +157,17 @@ A failed station request leaves existing positions intact and does not invent
 station locations or claim live vehicle tracking.
 
 Source: https://gis.toronto.ca/arcgis/rest/services/cot_geospatial25/FeatureServer/1
+
+
+## Automatic assignment journeys
+
+New approved assignments use the assessed route geometry and driving duration
+for estimated journey progress. Departure (15 seconds), on-scene time (3 minutes)
+and hospital handover (5 minutes) are scenario assumptions, scaled by the exercise
+clock (default 10×; 1× and 30× are available in Workspace controls). This is not
+live vehicle tracking or confirmation of patient treatment or crew activity.
+Completion releases the local unit and receiving slot once; the unit remains at
+the hospital-side route endpoint. Ending an exercise releases it at its current
+position and closes that exercise case. Old saved assignments retain manual
+progress so an upgrade does not guess they have finished. Timed journeys continue
+from persisted deadlines across restarts; paused assessment does not pause them.

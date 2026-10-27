@@ -53,7 +53,9 @@ class AgentCoordinator:
             coord = commitments(incident, state, recs, now) if incident['status'] == 'open' and not issues else {'units': {}, 'slots': {}, 'signature': '[]'}
             fingerprint = (state['epoch'], state['version'], incident.get('incident_revision', 0), coord['signature'])
             info = {'state': 'queued', 'reason': 'Queued for automatic assessment.', 'fingerprint': fingerprint}
-            if incident['status'] != 'open':
+            if incident['status'] in ('completed','cancelled'):
+                info.update(state='completed', reason='Assignment ended; resources were released at the last journey location.')
+            elif incident['status'] != 'open':
                 info.update(state='reserved', reason='Assignment reserved by the dispatcher.')
             elif issues:
                 watching = incident.get('public_feed_status') in ('missing', 'stale') and not incident.get('service')
@@ -99,6 +101,8 @@ class AgentCoordinator:
                     'events': list(self.events), 'error': self.error}
 
     def tick(self):
+        for event in self.arc.sim.advance_assignments():
+            self.log(event['incident_id'], 'Assignment '+event['phase'].replace('_', ' ')+'.')
         self.arc.sim.sync_public(self.arc.public_context.snapshot())
         if getattr(self.arc,'prepare_demo',False):self.arc.sim.load_demo_intake()
         state, statuses, work = self.inspect()

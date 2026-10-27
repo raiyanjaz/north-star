@@ -56,3 +56,6 @@ test('opening a workspace starts with operational cases rather than an old publi
  assert.equal(defaultInboxSelection(rows,'approved'),'approved');
  assert.equal(defaultInboxSelection(rows.slice(0,1),'old-report'),'old-report');
 });
+
+test('completed assignments leave the active inbox and remain accessible as history',async()=>{const {inboxGroup}=await import('../web/dispatch-model.mjs');assert.equal(inboxGroup({status:'completed',agent_state:'completed'}),'completed');assert.equal(inboxGroup({status:'cancelled',agent_state:'completed'}),'completed');assert.equal(inboxGroup({status:'assigned',agent_state:'reserved'}),'reserved');});
+test('journey controls advance one stage and stop after completion',async()=>{const {assignmentLabel,nextAssignmentPhase}=await import('../web/dispatch-model.mjs');assert.equal(nextAssignmentPhase('responding'),'on_scene');assert.equal(nextAssignmentPhase('handover'),'completed');assert.equal(nextAssignmentPhase('completed'),null);assert.equal(nextAssignmentPhase('cancelled'),null);assert.equal(assignmentLabel('transporting'),'Transporting');});

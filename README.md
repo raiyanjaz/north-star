@@ -471,3 +471,19 @@ Seattle exercise workspace**: `"$(scripts/python-path.sh)" scripts/live-check-se
 This explicitly resets Seattle, exercises intake/reassessment/reservation, then
 leaves a fresh Seattle workspace with automatic assessment enabled. It checks that
 Toronto's reservations remain unchanged. Do not run it during a Seattle demo.
+
+
+### Assignment journeys
+
+After approval, ARC advances a new assignment through response, scene time,
+transport and handover. The map shows estimated movement along the assessed route.
+Once completed, the unit becomes available at its last location and the receiving
+slot is released. Completed cases move to **Completed** in the inbox.
+
+**Workspace controls → Exercise journey speed** chooses 1×, 10× (default), or 30×.
+Driving durations use the approved routes; departure, scene and handover timing
+are documented exercise assumptions. These are simulated journeys, not live crew
+updates. Pausing ARC's assessment agent does not pause journeys already approved.
+**Journey controls** on an approved case can advance one stage or end that
+exercise assignment. Existing assignments from older versions use manual progress
+and keep their reservations until explicitly progressed or ended.

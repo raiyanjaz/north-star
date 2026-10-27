@@ -1,0 +1,59 @@
+{
+  "at": "2026-10-27T19:05:48Z",
+  "assignment": {
+    "id": "e7884fa1-e9fe-424e-b6dc-e618c4b39fc8",
+    "incident_id": "DEMO-201",
+    "ambulance_id": "A-51",
+    "hospital_id": "H-TWH",
+    "at": "2026-10-27T19:04:52.228445+00:00",
+    "phase": "completed",
+    "revision": 5,
+    "automatic": true,
+    "speed": 30,
+    "slot_released": true,
+    "pickup": [
+      -79.40031,
+      43.65798
+    ],
+    "destination": [
+      -79.40498,
+      43.65309
+    ],
+    "phase_started_epoch": 1793127946.8617783,
+    "phase_ends_epoch": null,
+    "history": [
+      {
+        "phase": "assigned",
+        "at": "2026-10-27T19:04:52.228445+00:00"
+      },
+      {
+        "phase": "responding",
+        "at": "2026-10-27T19:04:52.728445+00:00"
+      },
+      {
+        "phase": "on_scene",
+        "at": "2026-10-27T19:05:21.195112+00:00"
+      },
+      {
+        "phase": "transporting",
+        "at": "2026-10-27T19:05:27.195112+00:00"
+      },
+      {
+        "phase": "handover",
+        "at": "2026-10-27T19:05:36.861778+00:00"
+      },
+      {
+        "phase": "completed",
+        "at": "2026-10-27T19:05:46.861778+00:00"
+      }
+    ],
+    "completed_at": "2026-10-27T19:05:46.861778+00:00"
+  },
+  "position_samples": 7,
+  "checks": [
+    "all six stages",
+    "automatic movement along captured routes",
+    "unit available at destination",
+    "legacy reservations preserved in both cities"
+  ]
+}
