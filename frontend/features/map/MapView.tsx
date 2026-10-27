@@ -1,13 +1,13 @@
-import { useEffect, useRef } from "react";
 import type * as Leaflet from "leaflet";
+import { useEffect, useRef } from "react";
+import { hasPickup, proposalState, proposedUnits } from "../../policy";
 import type {
-  Snapshot,
-  Recommendation,
-  Layers,
   Feature,
+  Layers,
   Location,
-} from "../types";
-import { hasPickup, proposalState, proposedUnits } from "../policy";
+  Recommendation,
+  Snapshot,
+} from "../../types";
 export interface MapFocus {
   serial: number;
   mode: "selected" | "overview" | "feature";

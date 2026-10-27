@@ -1,21 +1,21 @@
 export {
-  elapsedSeconds,
-  durationLabel,
-  sortedIncidents,
-  proposalState,
+  assignmentLabel,
   belongsToSelection,
-  inboxGroup,
   caseQuestion,
   defaultInboxSelection,
-  assignmentLabel,
+  durationLabel,
+  elapsedSeconds,
+  inboxGroup,
   nextAssignmentPhase,
-} from "../web/dispatch-model.mjs";
+  proposalState,
+  sortedIncidents,
+} from "./domain/dispatch-model.mjs";
 import type {
-  Location,
-  Snapshot,
   Incident,
-  Recommendation,
   IntakeDraft,
+  Location,
+  Recommendation,
+  Snapshot,
 } from "./types";
 export const hasPickup = (
   p?: Location | null,

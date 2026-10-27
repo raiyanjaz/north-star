@@ -1,0 +1,47 @@
+.layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.layer-list label {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.public-list {
+  max-height: 360px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.public-row {
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+.public-row p {
+  color: #738294;
+  margin: 6px 0;
+}
+.public-row button {
+  font-size: 10px;
+  margin-top: 5px;
+}
+.activity-row {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  color: #698173;
+  margin: 14px 0;
+}
+.activity-row time {
+  color: #8b9791;
+  flex-shrink: 0;
+}
+.camera-image {
+  width: 100%;
+  display: block;
+  margin-top: 12px;
+  border-radius: 5px;
+}

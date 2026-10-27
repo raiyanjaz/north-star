@@ -10,7 +10,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer
 
-from app import Handler
+from app import Handler, ARC
 from cities import CITIES
 from incident_intake import incident_issues, valid_pickup
 from integrations import Federation
@@ -126,6 +126,8 @@ class SeattleTests(unittest.TestCase):
         server.feed_only = False
         server.arcs = {city: SimpleNamespace(sim=sim, config=CITIES[city], view=sim.read, prepare_demo=True)
                        for city, sim in [('toronto', self.toronto), ('seattle', self.seattle)]}
+        for workspace in server.arcs.values():
+            workspace.reset_workspace = lambda workspace=workspace: ARC.reset_workspace(workspace)
         thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
         base = 'http://127.0.0.1:' + str(server.server_port)
         try:

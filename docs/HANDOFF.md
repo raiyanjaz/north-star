@@ -149,4 +149,4 @@ account for receiving slots. Only human approval reserves resources. Rejection
 halts automatic resubmission on unchanged input. Service failures back off and
 surface for input; automatic starts are rate-limited. See ARCHITECTURE for exact
 policy limits. Current files include agent_control.py, coordination.py and
-web/agent-workspace.css. Old source archive and slide decks predate these changes.
+the legacy web/agent-workspace.css (subsequently replaced by the React feature styles; see docs/ARCHITECTURE.md). Old source archive and slide decks predate these changes.

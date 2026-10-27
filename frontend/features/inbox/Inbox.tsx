@@ -1,15 +1,15 @@
 import { useMemo, useState } from "react";
-import { FloatingPanel } from "./FloatingPanel";
+import { storageKey } from "../../api";
+import { FloatingPanel } from "../../components/FloatingPanel";
 import {
-  inboxGroup,
-  sortedIncidents,
-  caseQuestion,
   assignmentLabel,
+  caseQuestion,
   durationLabel,
   elapsedSeconds,
-} from "../policy";
-import { storageKey } from "../api";
-import type { Snapshot, Incident } from "../types";
+  inboxGroup,
+  sortedIncidents,
+} from "../../policy";
+import type { Incident, Snapshot } from "../../types";
 const names: Record<string, string> = {
   approval: "Review plans",
   input: "Questions for you",

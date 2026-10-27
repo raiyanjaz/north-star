@@ -1,0 +1,51 @@
+.scenario-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+.scenario-buttons button {
+  display: block;
+  text-align: left;
+  padding: 14px;
+}
+.scenario-buttons strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+}
+.scenario-buttons span {
+  display: block;
+  font-size: 11px;
+  color: #77889b;
+  margin-top: 6px;
+}
+.reset-section {
+  border-top: 1px solid var(--line);
+  margin-top: 22px;
+  padding-top: 18px;
+  font-size: 12px;
+}
+.danger {
+  color: #9c5146;
+}
+.integration-block {
+  margin: 0 0 24px;
+}
+.integration-block h3 {
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+pre {
+  font:
+    10px/1.7 ui-monospace,
+    SFMono-Regular,
+    monospace;
+  padding: 13px;
+  background: #f3f5f6;
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 350px;
+}

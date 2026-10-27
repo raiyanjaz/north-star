@@ -1,0 +1,402 @@
+@media (min-width: 1600px) {
+  .arc-workspace {
+    --panel-width: 410px;
+    --inbox-width: 300px;
+  }
+  .detail-panel .panel-body {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+  .detail-panel .panel-header {
+    padding: 23px 24px 19px;
+  }
+  .panel-header h2 {
+    font-size: 23px;
+  }
+  .case-guidance h3 {
+    font-size: 20px;
+  }
+  .inbox-panel {
+    max-height: calc(100dvh - 300px);
+  }
+}
+@media (max-width: 1200px) {
+  .arc-workspace {
+    --panel-width: 350px;
+    --inbox-width: 260px;
+  }
+  .workspace-utilities .connection {
+    display: none;
+  }
+  .workspace-header {
+    gap: 10px;
+  }
+  .panel-header h2 {
+    font-size: 19px;
+  }
+  .panel-body {
+    padding: 0 17px 18px;
+  }
+  .panel-header {
+    padding: 18px 17px 15px;
+  }
+  .plan-main strong {
+    font-size: 17px;
+  }
+  .eta strong {
+    font-size: 24px;
+  }
+}
+@media (min-width: 761px) and (max-width: 980px) {
+  .arc-workspace {
+    --panel-width: 330px;
+    --inbox-width: 244px;
+  }
+  .workspace-utilities time {
+    display: none;
+  }
+  .workspace-utilities button span {
+    display: none;
+  }
+  .inbox-open.detail-open .inbox-panel {
+    max-height: calc(100dvh - 300px);
+  }
+  .workspace-nav button {
+    font-size: 10px;
+    padding: 7px;
+  }
+  .agent-bar {
+    width: 480px;
+  }
+}
+@media (max-width: 760px) {
+  .arc-workspace {
+    --panel-width: calc(100vw - 24px);
+    --inbox-width: calc(100vw - 24px);
+    min-height: 360px;
+  }
+  .workspace-header {
+    top: 12px;
+    left: 12px;
+    height: 47px;
+    padding: 8px 10px;
+    gap: 10px;
+    border-radius: 8px;
+  }
+  .brand {
+    font-size: 21px;
+  }
+  .logo {
+    width: 28px;
+    height: 28px;
+  }
+  .logo svg {
+    width: 20px;
+  }
+  .city-choice select {
+    font-size: 11px;
+    max-width: 148px;
+  }
+  .workspace-utilities {
+    top: 12px;
+    right: 12px;
+    min-height: 45px;
+    gap: 0;
+    padding: 4px;
+    box-shadow: var(--shadow);
+  }
+  .workspace-utilities time,
+  .workspace-utilities .connection,
+  .workspace-utilities button span {
+    display: none;
+  }
+  .workspace-utilities button {
+    width: 31px;
+    padding: 6px;
+  }
+  .workspace-nav,
+  .inbox-open .workspace-nav {
+    left: 12px;
+    top: 69px;
+    right: 12px;
+    height: 41px;
+    justify-content: space-between;
+    padding: 3px;
+    border-radius: 7px;
+  }
+  .workspace-nav button {
+    font-size: 10px;
+    padding: 7px 9px;
+    gap: 5px;
+  }
+  .workspace-nav button svg {
+    width: 15px;
+    height: 15px;
+  }
+  .workspace-nav b {
+    font-size: 9px;
+    min-width: 16px;
+    padding: 1px 3px;
+  }
+  .floating-panel {
+    top: auto;
+    bottom: 126px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: calc(100dvh - 270px);
+    border-radius: 12px;
+    min-height: 0;
+  }
+  .detail-panel .panel-header,
+  .inbox-panel .panel-header {
+    padding: 14px 16px 12px;
+  }
+  .panel-header h2 {
+    font-size: 18px;
+  }
+  .panel-header .eyebrow {
+    font-size: 8px;
+    margin-bottom: 5px;
+  }
+  .panel-body,
+  .inbox-panel .panel-body {
+    padding: 0 16px 17px;
+  }
+  .panel-toolbar {
+    padding: 5px 12px;
+    margin-bottom: 13px;
+  }
+  .panel-actions {
+    margin-top: 0;
+  }
+  .case-guidance {
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+  }
+  .case-guidance h3 {
+    font-size: 17px;
+  }
+  .requirements {
+    margin-bottom: 18px;
+  }
+  .queue-stages button {
+    padding: 8px 3px;
+    flex-direction: row;
+    gap: 7px;
+  }
+  .queue-stages b {
+    font-size: 18px;
+  }
+  .queue-stages span {
+    min-height: 0;
+    font-size: 9px;
+    max-width: 55px;
+    text-align: left;
+  }
+  .queue-aux {
+    margin-top: 8px;
+  }
+  .inbox-note {
+    margin: 10px 0;
+    font-size: 10px;
+  }
+  .agent-bar {
+    left: 12px;
+    right: 12px;
+    bottom: 37px;
+    transform: none;
+    width: auto;
+    padding: 12px;
+    gap: 10px;
+    min-height: 67px;
+    border-radius: 9px;
+  }
+  .agent-copy strong {
+    font-size: 12px;
+  }
+  .agent-copy p {
+    font-size: 10px;
+  }
+  .agent-toggle {
+    padding: 7px;
+    font-size: 10px;
+  }
+  .agent-orb {
+    width: 7px;
+    height: 7px;
+  }
+  .map-caption,
+  .inbox-open .map-caption {
+    left: 12px;
+    bottom: 116px;
+    width: min(300px, calc(100% - 80px));
+    font-size: 8px;
+    padding: 5px 7px;
+  }
+  .detail-open .map-caption,
+  .inbox-open .map-caption {
+    display: none;
+  }
+  .map-controls,
+  .detail-open .map-controls {
+    flex-direction: column;
+    top: 121px;
+    bottom: auto;
+    right: 12px;
+    padding: 3px;
+    gap: 0;
+  }
+  .map-controls button {
+    width: 29px;
+    height: 29px;
+  }
+  .detail-open .map-controls {
+    right: 12px;
+  }
+  .map-legend {
+    font-size: 8px;
+    gap: 9px;
+  }
+  .map-caption p {
+    font-size: 8px;
+  }
+  .toast {
+    bottom: 113px;
+    width: calc(100% - 24px);
+    font-size: 11px;
+    padding: 10px 13px;
+    z-index: 30;
+  }
+  .pickup-prompt,
+  .connection-warning {
+    top: 118px;
+    left: 12px;
+    right: 12px;
+    transform: none;
+    max-width: none;
+    font-size: 11px;
+    padding: 9px 12px;
+    white-space: normal;
+  }
+  .pickup-prompt button {
+    margin-left: auto;
+  }
+  .picking-location .map-controls {
+    top: 180px;
+  }
+  .leaflet-control-attribution {
+    max-width: 78vw;
+    font-size: 7px !important;
+    line-height: 1.4 !important;
+  }
+  .leaflet-bottom.leaflet-left {
+    left: 2px;
+    bottom: 3px;
+  }
+  .leaflet-control-scale-line {
+    font-size: 8px;
+  }
+  .plan-section {
+    padding: 16px 0;
+  }
+  .form-grid {
+    gap: 10px;
+  }
+  .attributes > div {
+    grid-template-columns: 95px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .connection-warning {
+    z-index: 31;
+  }
+  .public-list {
+    max-height: 260px;
+  }
+}
+@media (max-width: 380px) {
+  .workspace-header {
+    gap: 8px;
+    padding: 8px;
+  }
+  .brand > span:last-child {
+    display: none;
+  }
+  .workspace-nav button {
+    padding: 7px 6px;
+    font-size: 9px;
+  }
+  .workspace-nav button svg {
+    width: 14px;
+  }
+  .agent-toggle span {
+    display: none;
+  }
+  .agent-copy p {
+    max-width: 235px;
+  }
+  .queue-stages span {
+    font-size: 8px;
+  }
+}
+@media (max-height: 600px) and (min-width: 761px) {
+  .floating-panel {
+    max-height: calc(100dvh - 155px);
+  }
+  .inbox-panel {
+    max-height: calc(100dvh - 230px);
+  }
+  .agent-bar {
+    bottom: 28px;
+    padding: 10px 14px;
+    min-height: 58px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* Reserve the bottom agent dock, including on tablet widths. */
+@media (min-width: 761px) {
+  .detail-panel {
+    max-height: calc(100dvh - 212px);
+  }
+}
+@media (max-width: 760px) {
+  .floating-panel {
+    max-height: min(55dvh, calc(100dvh - 300px));
+  }
+  .detail-open .map-controls,
+  .inbox-open .map-controls {
+    display: none;
+  }
+  .detail-open:has(.detail-panel.is-collapsed) .map-controls {
+    display: flex;
+  }
+}
+
+@media (min-width: 981px) and (max-width: 1200px) {
+  .inbox-panel {
+    max-height: calc(100dvh - 302px);
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1200px) {
+  .agent-bar {
+    left: calc(var(--inbox-width) + 36px);
+    right: 190px;
+    width: auto;
+    transform: none;
+  }
+}
+@media (max-width: 760px) {
+  .map-controls > span {
+    width: 20px;
+    height: 1px;
+  }
+}

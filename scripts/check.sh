@@ -5,6 +5,7 @@ PY="$(scripts/python-path.sh)"
 NODE="$(scripts/node-path.sh)"
 "$PY" -m unittest discover -s tests -v
 "$PY" -m py_compile cities.py assignment_lifecycle.py station_locations.py app.py launch.py simulation.py decision.py integrations.py agent.py meterless_client.py zetaris_client.py public_context.py network.py incident_intake.py coordination.py agent_control.py
+"$PY" -m compileall -q backend
 "$NODE" --check web/app.js
 # Source checks are available on developer installs; shipped assets need no npm setup.
 if [ -f node_modules/typescript/bin/tsc ]; then

@@ -60,7 +60,7 @@ class IntakeTests(unittest.TestCase):
   self.assertEqual(self.public()[0]['incident_revision'],ready['incident_revision'])
  def test_incomplete_call_is_blocked_before_any_ai_or_routing(self):
   sources=feed([call()]);self.sim.sync_public(sources);arc=object.__new__(ARC);arc.city='toronto';arc.sim=self.sim;arc.public_context=SimpleNamespace(snapshot=lambda:sources)
-  with patch('app.Agent') as agent:
+  with patch('backend.assessment.Agent') as agent:
    with self.assertRaisesRegex(ValueError,'Choose a priority'):arc.analyze(self.public()[0]['id'],'assess',{})
    agent.assert_not_called()
  def test_disappeared_call_blocks_approval_without_resolving(self):
@@ -76,7 +76,7 @@ class IntakeTests(unittest.TestCase):
   def explain(*args):
    self.complete(i,notes='Changed during inference')
    return {'evidence_ids':['E1'],'change_ids':[]},{}
-  with patch('app.Agent') as agent,patch('app.Federation') as federation:
+  with patch('backend.assessment.Agent') as agent,patch('backend.assessment.Federation') as federation:
    agent.return_value.plan.return_value=(['federate_resources','calculate_routes','recall_world_history'],{})
    agent.return_value.explain.side_effect=explain;federation.return_value.snapshot.return_value=(groups,{'version':version,'rows':len(groups),'duration_ms':1})
    with self.assertRaisesRegex(RuntimeError,'Results discarded'):arc.analyze(i['id'],'assess',{})
@@ -91,7 +91,7 @@ class IntakeTests(unittest.TestCase):
   groups={k:self.sim.feed(k)['records'] for k in ['fleet','hospitals','roads']};version=self.sim.read()['version']
   def explain(*args):
    self.sim.decide(r['id'],'reject');return {'evidence_ids':['E1'],'change_ids':[]},{}
-  with patch('app.Agent') as agent,patch('app.Federation') as federation:
+  with patch('backend.assessment.Agent') as agent,patch('backend.assessment.Federation') as federation:
    agent.return_value.plan.return_value=(['federate_resources','calculate_routes','recall_world_history'],{})
    agent.return_value.explain.side_effect=explain;federation.return_value.snapshot.return_value=(groups,{'version':version,'rows':len(groups),'duration_ms':1})
    with self.assertRaisesRegex(RuntimeError,'rejected the plan during refresh'):arc.analyze(i['id'],'assess',{'automatic':True})

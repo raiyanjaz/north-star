@@ -497,7 +497,7 @@ ARC uses React and TypeScript for its map-first workspace, with Vite compiling
 `frontend/` into the existing `web/app.js` and `web/style.css` routes. The Python
 API and its city-specific configuration injection are unchanged. Leaflet and the
 MapLibre Positron basemap remain mounted while React manages floating panels.
-`web/dispatch-model.mjs` remains the shared, tested display policy.
+`frontend/domain/dispatch-model.mjs` remains the shared, tested display policy.
 
 The normal launchers use committed build output and do not require a frontend
 server. To edit the frontend, install Node.js 24 and pnpm 11, then run:
@@ -519,9 +519,10 @@ pnpm test
 pnpm test:ui
 ```
 
-Browser tests require ARC running at `http://127.0.0.1:4317` and Google Chrome.
-They intercept API calls with isolated fixtures, so approvals, scenarios and
-reset tests do not mutate the running workspace. They cover the frontend API
+Browser tests require Google Chrome and start their own read-only static host
+at `http://127.0.0.1:4319`. The host does not instantiate ARC, open a workspace
+database or start feeds/assessments. API calls are intercepted with isolated
+fixtures; the real app can remain stopped during testing. They cover the frontend API
 contract, stale/expired/offline approval protection, draft preservation,
 background assessment ownership, map selection and responsive geometry.
 `./scripts/check.sh` continues to run the real Python/backend tests and World
@@ -532,3 +533,28 @@ to open floating panels. Map markers open contextual details; panels can be
 collapsed or closed. Zoom to keeps a selected route clear of the open panels.
 On phones, details open in a bottom sheet, with pickup selection temporarily
 collapsing the sheet. The bottom agent bar retains pause/resume controls.
+
+
+### Code organization
+
+- `frontend/features/`: case intake/review, map, inbox, resources, context, and
+  workspace components. `App.tsx` composes them; `useWorkspace.ts` owns server
+  snapshots/jobs, while `features/workspace/useWorkspaceLayout.ts` owns UI state.
+- `frontend/styles.css`: ordered imports of base, feature, and responsive styles.
+  Keep shared breakpoint rules in `frontend/styles/responsive.css`. Import order
+  is intentional; generated `web/style.css` must be rebuilt after edits.
+- `frontend/domain/`: pure display policy and its TypeScript declarations.
+- `backend/http.py`: HTTP routing, response encoding, origin checks and assets.
+- `backend/application.py`: per-city composition, snapshots and command orchestration.
+- `backend/assessment.py`: the evidence/route/model assessment pipeline.
+- `backend/workspace.py`: stable workspace API, delegating to `backend/domain/`.
+- `backend/domain/`: intake, proposal decisions, journeys and scenario operations.
+- `backend/storage.py`: SQLite schema, queries and transaction boundaries.
+- Root `app.py` and `simulation.py` preserve launcher and import compatibility.
+  Focused policy/provider modules remain at the root; they use `backend/common.py`
+  for shared paths/timestamps instead of importing storage or HTTP code.
+
+For transaction changes, run `tests/test_storage.py` and the decision/lifecycle
+suite. `tests/test_http_commands.py` exercises real HTTP → application → SQLite
+requests using temporary data, without provider services. See
+[architecture](docs/ARCHITECTURE.md) for the dependency boundaries.

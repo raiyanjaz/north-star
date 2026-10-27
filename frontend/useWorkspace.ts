@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, storageKey } from "./api";
 import { defaultInboxSelection } from "./policy";
-import type { Snapshot, Recommendation, Job } from "./types";
+import type { Job, Recommendation, Snapshot } from "./types";
 export function useWorkspace() {
   const [state, setState] = useState<Snapshot | null>(null),
     [selected, setSelected] = useState<string | null>(() =>

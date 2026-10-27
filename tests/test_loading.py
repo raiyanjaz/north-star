@@ -19,7 +19,7 @@ class LoadingTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         (self.root / 'web').mkdir()
         (self.root / 'web/app.js').write_text('/* static asset */' * 200)
-        self.root_patch = patch('app.ROOT', self.root); self.root_patch.start()
+        self.root_patch = patch('backend.http.ROOT', self.root); self.root_patch.start()
         self.server = ARCServer(('127.0.0.1', 0), Handler)
         self.server.feed_only = False
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True); self.thread.start()

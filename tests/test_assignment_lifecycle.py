@@ -37,7 +37,7 @@ class LifecycleTests(unittest.TestCase):
             'evidence_epoch': self.now, 'selected': {'ambulance_id': unit['id'], 'hospital_id': hospital['id'],
             'pickup_route': pickup, 'transport_route': transport}}
         sim.store_rec(rec)
-        with patch('simulation.time.time', return_value=self.now): sim.decide(rec['id'], 'approve')
+        with patch('backend.domain.proposals.time.time', return_value=self.now): sim.decide(rec['id'], 'approve')
         return sim.read()['assignments'][-1]
 
     def assignment(self, sim=None): return (sim or self.sim).read()['assignments'][-1]
@@ -182,6 +182,6 @@ class LifecycleTests(unittest.TestCase):
         arc = SimpleNamespace(sim=self.sim, public_context=SimpleNamespace(snapshot=lambda: {}),
             jobs={}, jobs_lock=threading.Lock(), analysis_lock=threading.Lock())
         supervisor = AgentCoordinator(arc, start=False)
-        with patch('simulation.time.time', return_value=self.now+1000): supervisor.tick()
+        with patch('agent_control.time.time', return_value=self.now+1000): supervisor.tick()
         self.assertEqual(self.assignment()['phase'], 'completed')
         self.assertEqual(self.sim.read()['fleet'][0]['status'], 'available')

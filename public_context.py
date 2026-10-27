@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
-from simulation import stamp
+from backend.common import stamp
 from network import tls_context
 from cities import city_config
 from incident_intake import valid_pickup

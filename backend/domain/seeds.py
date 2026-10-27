@@ -1,0 +1,98 @@
+"""Original Toronto exercise profiles (Seattle uses its JSON fixture)."""
+
+HOSPITALS = [
+    {
+        "id": "H-TGH",
+        "name": "Toronto General",
+        "lat": 43.6596,
+        "lon": -79.3885,
+        "capabilities": "general,cardiac",
+        "accepting": 1,
+        "slots": 3,
+    },
+    {
+        "id": "H-SMH",
+        "name": "St. Michael’s",
+        "lat": 43.6534,
+        "lon": -79.3777,
+        "capabilities": "general,trauma",
+        "accepting": 1,
+        "slots": 2,
+    },
+    {
+        "id": "H-TWH",
+        "name": "Toronto Western",
+        "lat": 43.6534,
+        "lon": -79.4055,
+        "capabilities": "general,neuro",
+        "accepting": 1,
+        "slots": 2,
+    },
+    {
+        "id": "H-SK",
+        "name": "SickKids",
+        "lat": 43.6575,
+        "lon": -79.3869,
+        "capabilities": "pediatric",
+        "accepting": 1,
+        "slots": 2,
+    },
+]
+FLEET = [
+    {
+        "id": "A-12",
+        "name": "Medic 12",
+        "lat": 43.6508,
+        "lon": -79.3881,
+        "equipment": "general,advanced",
+        "status": "available",
+    },
+    {
+        "id": "A-24",
+        "name": "Medic 24",
+        "lat": 43.6651,
+        "lon": -79.3992,
+        "equipment": "general,advanced",
+        "status": "available",
+    },
+    {
+        "id": "A-37",
+        "name": "Medic 37",
+        "lat": 43.6480,
+        "lon": -79.3690,
+        "equipment": "general",
+        "status": "busy",
+    },
+]
+INCIDENTS = [
+    {
+        "id": "INC-1042",
+        "name": "Queen & University",
+        "lat": 43.6509,
+        "lon": -79.3862,
+        "service": "general",
+        "equipment": "general",
+        "priority": "Priority 2",
+        "description": "Adult transport • predefined general-service requirement",
+    },
+    {
+        "id": "INC-1043",
+        "name": "College & Spadina",
+        "lat": 43.6580,
+        "lon": -79.4003,
+        "service": "neuro",
+        "equipment": "advanced",
+        "priority": "Priority 1",
+        "description": "Specialist transport • predefined neuro-service requirement",
+    },
+    {
+        "id": "INC-1044",
+        "name": "King & Church",
+        "lat": 43.6499,
+        "lon": -79.3753,
+        "service": "pediatric",
+        "equipment": "general",
+        "priority": "Priority 2",
+        "description": "Pediatric transport • predefined pediatric-service requirement",
+    },
+]

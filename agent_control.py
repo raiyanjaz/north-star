@@ -4,7 +4,7 @@ import time
 from collections import deque
 from coordination import commitments, current_proposal, priority_key, resource_blocker, proposal_conflict
 from incident_intake import incident_issues
-from simulation import stamp
+from backend.common import stamp
 
 
 class AgentCoordinator:

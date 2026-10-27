@@ -1,0 +1,38 @@
+.feature-symbol {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 11px;
+  background: #eef3f9;
+  color: #4874ad;
+  margin: 0 0 18px;
+}
+.feature-symbol.hospital {
+  color: #267d67;
+  background: #edf5f1;
+}
+.attributes {
+  margin: 0;
+}
+.attributes > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 15px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.attributes dt {
+  color: #83908b;
+  font-size: 11px;
+}
+.attributes dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.feature-note {
+  font-size: 11px;
+  margin-top: 20px;
+}

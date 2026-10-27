@@ -1,4 +1,4 @@
-import type { Incident, Recommendation, Job } from "../frontend/types";
+import type { Incident, Job, Recommendation } from "../types";
 export function elapsedSeconds(
   iso: string | undefined,
   now?: number,

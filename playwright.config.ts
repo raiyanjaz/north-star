@@ -5,12 +5,20 @@ export default defineConfig({
   fullyParallel: true,
   workers: 3,
   use: {
-    baseURL: "http://127.0.0.1:4317",
+    baseURL: "http://127.0.0.1:4319",
     headless: true,
     channel: "chrome",
     viewport: { width: 1440, height: 1000 },
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
+  },
+  webServer: {
+    command:
+      process.platform === "win32"
+        ? "py -3 scripts/test-ui-server.py"
+        : "python3 scripts/test-ui-server.py",
+    url: "http://127.0.0.1:4319/",
+    reuseExistingServer: false,
   },
   reporter: "list",
   outputDir: "artifacts/private/playwright",

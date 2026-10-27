@@ -1,0 +1,78 @@
+.leaflet-control-attribution {
+  font-size: 8px !important;
+  background: #ffffffd9 !important;
+  color: #69746d !important;
+  max-width: 75vw;
+}
+.leaflet-control-attribution a {
+  color: #526f7b !important;
+}
+.leaflet-control-scale-line {
+  font-size: 9px;
+  background: #ffffffc9;
+  border-color: #69796c;
+  color: #4d6254;
+}
+.leaflet-bottom.leaflet-left {
+  bottom: 6px;
+  left: 8px;
+}
+.leaflet-bottom.leaflet-right {
+  bottom: 3px;
+  right: 6px;
+}
+.leaflet-container a.leaflet-popup-close-button {
+  color: var(--ink);
+}
+.map-marker {
+  background: none;
+  border: 0;
+}
+.marker {
+  height: 32px;
+  width: 32px;
+  display: grid;
+  place-items: center;
+  color: white;
+  background: #255bd6;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  font-size: 19px;
+  font-weight: 600;
+  box-shadow: 0 2px 7px #16261d33;
+}
+.marker.hospital {
+  background: #16786b;
+}
+.marker.muted {
+  opacity: 0.65;
+}
+.marker.active {
+  outline: 3px solid #93b4df;
+  outline-offset: 3px;
+  opacity: 1;
+}
+.selected-map-label {
+  font:
+    500 11px "DM Sans",
+    sans-serif !important;
+  color: #304536 !important;
+  border-color: #d3dcd6 !important;
+  box-shadow: 0 1px 5px #243a5020 !important;
+}
+.choosing-pickup {
+  cursor: crosshair !important;
+}
+.fatal-error {
+  margin: 10vh auto;
+  padding: 30px;
+  max-width: 500px;
+  background: white;
+  border-radius: 12px;
+}
+.fatal-error p {
+  margin: 20px 0;
+}
+.fatal-error h1 {
+  font-size: 24px;
+}

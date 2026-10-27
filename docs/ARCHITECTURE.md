@@ -1,5 +1,64 @@
 # ARC architecture
 
+## Source layout and dependency boundaries
+
+ARC is a single Python application with a compiled React/TypeScript frontend.
+The structural refactor preserves the HTTP paths, response bodies, data schema,
+city isolation and existing approval/journey guards.
+
+```text
+frontend/
+  App.tsx                    UI composition
+  useWorkspace.ts            server snapshots, requests and job polling
+  features/workspace/        UI layout state, navigation, docks and panels
+  features/cases/            intake, guidance, plan review, evidence, journeys
+  features/map/              map lifetime, feature layers and feature details
+  features/inbox/            queues and filters
+  features/resources/        resource inventory
+  features/context/          public feeds and cameras
+  components/                shared panel, icon and error boundary
+  domain/                    pure display policy shared with tests
+  styles/                    base, workspace and responsive styles
+backend/
+  runtime.py                 process wiring and server lifecycle
+  http.py                    transport, origins, encoding and static assets
+  application.py             city services, snapshot/command orchestration
+  assessment.py              evidence collection and assessment pipeline
+  workspace.py               stable domain service API
+  domain/                    intake, proposals, journeys, scenarios and seeds
+  storage.py                 SQLite queries and atomic transactions
+  common.py                  paths and timestamps
+```
+
+`app.py` remains the executable launcher and re-exports ARC/Handler/ARCServer.
+`simulation.py` retains the original imports for scripts and integrations.
+Existing standalone decision, intake-validation, coordination, journey-policy
+and provider modules remain focused modules at the repository root.
+
+HTTP handlers delegate multi-step commands to the application service. The
+application composes the workspace, public-feed adapters, World Model and
+assessment supervisor. Workspace domain operations use the repository instead
+of issuing SQL; only `backend/storage.py` owns persistence queries. The existing
+workspace lock and `BEGIN IMMEDIATE` transactions still cover reservation,
+progression and audit writes. Database files and JSON payloads are unchanged.
+
+React owns panel/draft state separately from polled server state. Components are
+defined at module scope so extraction does not recreate their identities during
+render. The map component remains mounted. Feature CSS is imported in the
+original order, with shared responsive rules last. The compiled CSS was verified
+byte-for-byte identical at the refactor checkpoint.
+
+Edit frontend source, then run `pnpm build`. `web/app.js` and `web/style.css` are
+committed build outputs so normal launchers need no frontend build service.
+`web/` also contains the HTML shell, vendored map assets and fallback geography;
+handwritten display policy now lives under `frontend/domain/`.
+
+Browser tests start a read-only static host on port 4319 and intercept API
+requests. They neither start ARC nor modify saved workspaces. Python HTTP-command
+tests cover the real transport/service/repository chain using temporary SQLite
+files. Provider acceptance checks remain separate from those isolated tests.
+
+
 ```mermaid
 flowchart LR
     D[Dispatcher UI / Leaflet] --> A[ARC Python API]
@@ -75,8 +134,9 @@ OSRM returns actual OSM road geometries and static driving durations. A 7-day ca
 is explicitly labelled cached, with fetch times retained. No valid cache + routing
 failure means no feasible routed assignment. No straight-line ETA substitution.
 
-The local basemap is a cached partial Toronto Centreline extract (up to 6,000 road
-features). It avoids external tile service dependencies. It is display geography,
+The primary basemap is OpenFreeMap Positron rendered through MapLibre inside
+Leaflet. OpenStreetMap raster tiles and the local street extracts provide
+fallbacks when the vector background is unavailable. This is display geography,
 not a routing engine. City road restrictions are optional public context, up to 100
 records, with fetch time and cache/error status. They are not inferred as precise
 closure polygons. A simulated closure controls the reproducible routing scenario.
@@ -163,7 +223,7 @@ per ten minutes. Budget exhaustion resumes automatically; manual retries remain
 explicit overrides. Attempt counters/budget are in memory and reset on app restart;
 recommendations, reservations, agent enablement and prepared intake persist.
 
-The agent can be paused/resumed from the map toolbar. Pause prevents new automatic
+The agent can be paused/resumed from the bottom agent bar. Pause prevents new automatic
 work while allowing an in-flight assessment to finish. The UI/API shows agent work,
 awaiting approvals, resource waits, missing input, and recent agent events. Every
 approval and rejection remains a dispatcher action.

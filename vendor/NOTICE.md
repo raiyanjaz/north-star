@@ -9,7 +9,8 @@ Leaflet 1.9.4: BSD-2-Clause, https://github.com/Leaflet/Leaflet/blob/v1.9.4/LICE
 Vendored JS/CSS in web/. See LEAFLET-LICENSE.
 
 Basemap: cached City of Toronto Centreline geometry, Open Government Licence Toronto.
-No external map tiles are used. OSRM routes retain OpenStreetMap attribution.
+The current frontend uses OpenFreeMap Positron vector tiles, with OpenStreetMap
+raster tiles and the cached local streets as fallbacks. OSRM routes retain OpenStreetMap attribution.
 Routes: OSRM public demo service, OpenStreetMap road network. Best-effort availability.
 Public road restrictions: City of Toronto Open Government Licence,
 https://open.toronto.ca/open-data-licence/ . Context only, partial feed.
