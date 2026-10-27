@@ -138,3 +138,28 @@ Replaced standard raster streets with OpenFreeMap Positron vector cartography, r
 Removed the decorative left accent borders and tinted containers from recommendation rationale and case guidance, plus the activity rail and selected-incident accent. Typographic hierarchy and spacing carry the explanation; semantic colors remain for status and routes. The short rationale summarizes the ranking; the full evidence and tie-breaking policy remain in the expanded evidence section.
 
 Research references: [Uber Base](https://base.uber.com/) for coherent visual hierarchy; [Mapbox map design](https://www.mapbox.com/insights/map-design-process) for restrained palettes and feature emphasis; [OpenFreeMap quick start](https://openfreemap.org/quick_start/) for vector integration. This is an ARC design adaptation, not a copy of Uber's proprietary map style or a claim that callout borders are uniquely AI-generated.
+
+
+## Decision inbox iteration — October 27
+
+The default inbox shows operational response cases under Review plans, Questions
+for you, With ARC, and Active assignments. Untriaged public reports are available
+through Public reports and Earlier reports. They do not count as human questions
+until a dispatcher supplies response requirements. Previously confirmed cases
+with missing/stale source information remain actionable questions, never hidden
+as raw feed history. Resource waits stay with ARC rather than becoming questions.
+
+Cards show the location and next action, with identifiers retained in supporting
+evidence rather than as primary labels. Reopening a workspace prioritizes an
+operational case over an old saved public-report selection. The selected case
+explains the current decision or specific information gap, with an intake/retry
+control. Requirements remain explicit dispatcher inputs; no diagnosis is inferred.
+
+The map defaults to the selected plan's unit and destination, and focuses the
+case on deliberate selection. Routine polling does not recenter it. Other units,
+facilities, reports, restrictions and sampled traffic overlays can be enabled in
+Map & source details. Resource counts and unavailability remain visible beneath
+the map; complete inventories open in Resources. Source context and activity are
+available in a dialog. No conversational model or fabricated dialogue is added:
+case messages describe actual state, and Why this plan / Compare options use the
+existing evidence and assessment pipeline.

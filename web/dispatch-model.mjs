@@ -40,3 +40,37 @@ export function workflowBucket(incident) {
   if (incident.assessment_blockers?.length) return 'intake';
   return 'action';
 }
+
+// Public reports are incoming context until a dispatcher supplies response requirements.
+export function inboxGroup(incident) {
+  if(incident.status!=='open')return 'reserved';
+  if(incident.public_source&&!incident.requirements_source&&!incident.prepared_intake)
+    return ['missing','stale'].includes(incident.public_feed_status)?'history':'reports';
+  if(incident.agent_state==='awaiting_approval')return 'approval';
+  if(incident.assessment_blockers?.length||incident.agent_state==='needs_input'||incident.agent_state==='watching')return 'input';
+  return 'working';
+}
+
+export function defaultInboxSelection(incidents,savedId) {
+  const saved=incidents.find(i=>i.id===savedId);
+  if(saved&&!['reports','history'].includes(inboxGroup(saved)))return saved.id;
+  const operational=sortedIncidents(incidents.filter(i=>!['reports','history'].includes(inboxGroup(i))));
+  return operational.find(i=>i.status==='open')?.id||operational[0]?.id||saved?.id||sortedIncidents(incidents)[0]?.id||null;
+}
+
+export function caseQuestion(incident) {
+  const issues=incident.assessment_blockers||[];
+  if(issues.some(s=>s.includes('changed public call')||s.includes('feed')||s.includes('no longer')))return {
+    title:'Can you verify this call?',
+    body:'The published call changed or its source is no longer current. Review the details before ARC prepares another plan.',
+    action:'Review call details',target:'intake'};
+  if(issues.some(s=>s.includes('pickup location')))return {
+    title:'Where should the unit go?',
+    body:'This report does not include a confirmed pickup point. Choose a location, then confirm the response requirements.',
+    action:'Confirm pickup and requirements',target:'intake'};
+  if(issues.length)return {
+    title:'What response is needed?',
+    body:'The public report does not supply the priority, required service and equipment. Confirm those details so ARC can assess this call.',
+    action:'Confirm response requirements',target:'intake'};
+  return {title:'This case needs your review',body:incident.agent_reason||'Review the previous plan or adjust the requirements before asking ARC to continue.',action:'Review and retry',target:'retry'};
+}

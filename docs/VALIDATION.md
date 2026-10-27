@@ -257,3 +257,18 @@ fresh 200 gzip responses for state/proposals. With both remote map providers
 blocked, cached Seattle street labels and the incident queue still appeared.
 Both cities' epochs, fleet/hospital resources and reservations matched the
 pre-change snapshot. Evidence: artifacts/city-switch-validation.json.
+
+
+### Decision inbox iteration — October 27
+
+102 checks passed (73 Python, 21 workspace behavior checks, 8 upstream engine
+checks), plus JavaScript syntax and configured-secret scanning. New behavior tests
+cover public reports vs confirmed questions, resource waits, prepared and approved
+cases, focused pickup/source/requirements prompts, rejection/retry prompts, and
+opening an operational case instead of an old saved report.
+
+Browser verified Toronto pending plans and Seattle approved assignments, separate
+public reports, focused intake with explicit requirements, resource and context
+dialogs, explanation and alternative disclosure, and a 390px mobile layout with
+no horizontal page overflow. Existing assignments were inspected without approval,
+rejection, reset or scenario mutations. This iteration changes the frontend only.
